@@ -14,6 +14,8 @@ Läuft auf normalem **PHP-Webhosting mit MySQL**, z. B. bei **World4You**.
 - **Mehrmals abgeben**: Neue Beispiele werden zu den bisherigen dazugezählt. Schon abgegebene sind markiert, auch auf einem anderen Gerät.
 - Live-Anzeige, wie viele Beispiele bis 80 % noch fehlen, und ein Countdown bis zur Frist.
 - Das eigene Passwort lässt sich ändern.
+- **❓ Fragen markieren**: Über „Frage markieren“ tippen Schüler die Beispiele an, bei denen sie etwas nicht verstanden haben.
+  Optional schreiben sie dazu, was unklar ist. Das wird sofort gespeichert, auch ohne Abgabe und auch nach der Frist.
 
 **Lehrkraft** (`lehrer.html`)
 - **Konten**:
@@ -31,6 +33,10 @@ Läuft auf normalem **PHP-Webhosting mit MySQL**, z. B. bei **World4You**.
 - **Blatt-Ansicht**:
   - Tabelle Schüler mal Beispiele (✓), Status „erfüllt“, „fehlt 2“ oder **„nichts abgegeben“**
   - Kommentare, einzelne Abgaben löschen
+- **❓ Fragen**:
+  - pro Blatt nach Beispiel gruppiert, die meistgefragten zuerst, gut zum Besprechen in der Stunde
+  - in der Tabelle mit einem orangen „?“ markiert, am Tab mit der Zahl offener Fragen
+  - mit „✓ beantwortet“ abhaken. Die Schüler sehen dann „beantwortet“, und wenn sie die Frage ändern, ist sie wieder offen.
 - Filter nach Klasse und Name, CSV-Export (öffnet in Excel), die Seite aktualisiert sich von selbst.
 
 ## Installation auf World4You (oder anderem PHP-Webhosting)

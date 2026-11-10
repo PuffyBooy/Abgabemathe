@@ -2,8 +2,8 @@
 // Verhält sich wie api.php, inklusive Konten, Anfragen und Login. Wird nur in die Demo-Seite eingebunden.
 (function () {
   'use strict';
-  const KEY = 'abgabemathe-demo-v4';
-  const SESSION_KEY = 'abgabemathe-demo-v4-session';
+  const KEY = 'abgabemathe-demo-v5';
+  const SESSION_KEY = 'abgabemathe-demo-v5-session';
   const DEMO_PASSWORD = 'demo';
   const core = window.AbgabeCore;
   let memoryDb = null; // falls localStorage nicht verfügbar ist
@@ -106,7 +106,22 @@
       };
     }).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-    return { users, sheets, submissions };
+    // [Blatt, Benutzer, Beispiel, Text, Zeitpunkt, beantwortet]
+    const qs = [
+      ['demo-hue4', 'mia', '1.18', 'Wie rechne ich den Grundwert aus?', rel(due4, 0, 7, 41), true],
+      ['demo-hue4', 'mia', '2.3', '', rel(due4, 0, 7, 42), true],
+      ['demo-hue5', 'max', '2.21', 'Wie bringe ich die Brüche auf den gleichen Nenner?', dayAt(-1, 20, 44), false],
+      ['demo-hue5', 'mia', '2.21', '', dayAt(-1, 21, 8), false],
+      ['demo-hue5', 'emma', '2.21', 'Bei b) kommt bei mir was anderes raus als hinten im Buch.', dayAt(-2, 19, 28), false],
+      ['demo-hue5', 'emma', '3.7', '', dayAt(-2, 19, 29), false],
+      ['demo-hue5', 'paul', '4.2', 'Was heißt „Kehrwert“?', dayAt(-1, 15, 50), false],
+      ['demo-hue6', 'sara', '7.25', 'Muss man die Probe auch machen?', minutesAgo(20), false],
+    ];
+    const questions = qs.map(([sheetId, who, task, text, createdAt, resolved]) => ({
+      id: newId(), sheetId, userId: 'u-' + who, task, text, createdAt, updatedAt: createdAt, resolved,
+    }));
+
+    return { users, sheets, submissions, questions };
   }
 
   // ---------- Speicher ----------
@@ -180,6 +195,13 @@
     return u;
   }
 
+  function myQuestions(db, s, userId) {
+    return s.tasks
+      .map((t) => db.questions.find((q) => q.sheetId === s.id && q.userId === userId && q.task === t))
+      .filter(Boolean)
+      .map((q) => ({ task: q.task, text: q.text, resolved: q.resolved }));
+  }
+
   function doneOf(db, sheetId, userId) {
     const mine = db.submissions.filter((s) => s.sheetId === sheetId && s.userId === userId);
     return { done: new Set(mine.flatMap((s) => s.tasks)), count: mine.length };
@@ -248,7 +270,7 @@
       const u = requireUser(db);
       const sheets = db.sheets.filter((s) => visibleFor(s, u)).map((s) => {
         const { done, count } = doneOf(db, s.id, u.id);
-        return { ...sheetOut(s), myDone: s.tasks.filter((t) => done.has(t)), mySubmissions: count };
+        return { ...sheetOut(s), myDone: s.tasks.filter((t) => done.has(t)), mySubmissions: count, myQuestions: myQuestions(db, s, u.id) };
       });
       return [200, { serverTime: nowIso(), sheets }];
     }
@@ -266,12 +288,34 @@
       return [201, { ok: true, late, submissionCount: count, required: required(s), doneTasks: s.tasks.filter((t) => done.has(t)) }];
     }
 
+    if (method === 'POST' && p[0] === 'sheets' && n === 3 && p[2] === 'question') {
+      const u = requireUser(db);
+      const s = db.sheets.find((x) => x.id === p[1]);
+      if (!s || !visibleFor(s, u)) throw new ApiError(404, 'Dieses Aufgabenblatt gibt es nicht (mehr).');
+      const task = clean(b.task, 40);
+      if (!s.tasks.includes(task)) throw new ApiError(400, 'Dieses Beispiel gibt es auf dem Blatt nicht.');
+      const existing = db.questions.find((q) => q.sheetId === s.id && q.userId === u.id && q.task === task);
+      if (b.remove) {
+        db.questions = db.questions.filter((q) => q !== existing);
+      } else {
+        const text = clean(b.text, 300);
+        if (existing) {
+          if (text !== existing.text) existing.resolved = false;
+          existing.text = text;
+          existing.updatedAt = nowIso();
+        } else {
+          db.questions.push({ id: newId(), sheetId: s.id, userId: u.id, task, text, createdAt: nowIso(), updatedAt: nowIso(), resolved: false });
+        }
+      }
+      return [200, { myQuestions: myQuestions(db, s, u.id) }];
+    }
+
     if (p[0] === 'admin') {
       const me = requireTeacher(db);
       if (method === 'GET' && p[1] === 'data') {
         return [200, {
           serverTime: nowIso(), me: publicUser(me), sheets: db.sheets.map(sheetOut), submissions: db.submissions,
-          users: db.users.map(publicUser),
+          users: db.users.map(publicUser), questions: db.questions,
         }];
       }
       if (p[1] === 'sheets' && n === 2 && method === 'POST') {
@@ -289,6 +333,19 @@
         if (method === 'DELETE') {
           const [removed] = db.sheets.splice(i, 1);
           db.submissions = db.submissions.filter((s) => s.sheetId !== removed.id);
+          db.questions = db.questions.filter((q) => q.sheetId !== removed.id);
+          return [200, { ok: true }];
+        }
+      }
+      if (p[1] === 'questions' && n >= 3) {
+        const q = db.questions.find((x) => x.id === p[2]);
+        if (!q) throw new ApiError(404, 'Frage nicht gefunden.');
+        if (method === 'POST' && p[3] === 'resolve') {
+          q.resolved = !('resolved' in b) || !!b.resolved;
+          return [200, { ok: true }];
+        }
+        if (method === 'DELETE' && n === 3) {
+          db.questions = db.questions.filter((x) => x !== q);
           return [200, { ok: true }];
         }
       }
@@ -331,6 +388,7 @@
           if (u.id === me.id) throw new ApiError(400, 'Du kannst dein eigenes Konto nicht löschen.');
           db.users = db.users.filter((x) => x.id !== u.id);
           db.submissions = db.submissions.filter((s) => s.userId !== u.id);
+          db.questions = db.questions.filter((q) => q.userId !== u.id);
           return [200, { ok: true }];
         }
       }

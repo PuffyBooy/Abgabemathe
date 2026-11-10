@@ -160,9 +160,37 @@ async function runApiTests() {
   assert.deepStrictEqual(r.data.sheets[0].myDone, ['2.16', '3.18', '7.19', '8.1']);
   assert.strictEqual(r.data.sheets[0].mySubmissions, 2);
 
+  // Fragen markieren
+  r = await lena.call('POST', `sheets/${hue5.id}/question`, { task: '8.2', text: 'Wie kürzt man da?' });
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(r.data.myQuestions, [{ task: '8.2', text: 'Wie kürzt man da?', resolved: false }]);
+  r = await lena.call('POST', `sheets/${hue5.id}/question`, { task: '2.16' });
+  assert.deepStrictEqual(r.data.myQuestions.map((x) => x.task), ['2.16', '8.2']); // Reihenfolge wie auf dem Blatt
+  assert.strictEqual((await lena.call('POST', `sheets/${hue5.id}/question`, { task: '9.9' })).status, 400);
+  assert.strictEqual((await lena.call('POST', `sheets/${only3a.id}/question`, { task: '1' })).status, 404);
+  r = await lena.call('POST', `sheets/${hue5.id}/question`, { task: '2.16', remove: true });
+  assert.deepStrictEqual(r.data.myQuestions.map((x) => x.task), ['8.2']);
+  r = await lena.call('GET', 'sheets');
+  assert.strictEqual(r.data.sheets[0].myQuestions.length, 1);
+  // Lehrkraft sieht die Frage und hakt sie ab
+  r = await teacher.call('GET', 'admin/data');
+  assert.strictEqual(r.data.questions.length, 1);
+  const question = r.data.questions[0];
+  assert.strictEqual(question.task, '8.2');
+  assert.strictEqual(question.userId, pending.id);
+  assert.strictEqual((await lena.call('POST', `admin/questions/${question.id}/resolve`)).status, 403); // nicht für Schüler
+  assert.strictEqual((await teacher.call('POST', `admin/questions/${question.id}/resolve`, { resolved: true })).status, 200);
+  r = await lena.call('GET', 'sheets');
+  assert.strictEqual(r.data.sheets[0].myQuestions[0].resolved, true);
+  // Text geändert -> wieder offen
+  r = await lena.call('POST', `sheets/${hue5.id}/question`, { task: '8.2', text: 'Doch noch unklar' });
+  assert.strictEqual(r.data.myQuestions[0].resolved, false);
+
   // Frist abgelaufen + gesperrt
   await teacher.call('PUT', `admin/sheets/${hue5.id}`, { deadline: new Date(Date.now() - 60000).toISOString(), lockAfterDeadline: true });
   assert.strictEqual((await lena.call('POST', `sheets/${hue5.id}/submit`, { tasks: ['8.2'] })).status, 403);
+  // Fragen gehen auch nach der Frist
+  assert.strictEqual((await lena.call('POST', `sheets/${hue5.id}/question`, { task: '7.19' })).status, 200);
   // Frist abgelaufen, nicht gesperrt -> verspätet
   r = await teacher.call('PUT', `admin/sheets/${hue5.id}`, { lockAfterDeadline: false, minPercent: 60 });
   assert.strictEqual(r.data.minPercent, 60);
@@ -205,10 +233,11 @@ async function runApiTests() {
   await lena.call('POST', 'logout');
   assert.strictEqual((await lena.call('GET', 'sheets')).status, 401);
 
-  // Blatt löschen löscht Abgaben mit
+  // Blatt löschen löscht Abgaben und Fragen mit
   await teacher.call('DELETE', `admin/sheets/${hue5.id}`);
   r = await teacher.call('GET', 'admin/data');
   assert.strictEqual(r.data.submissions.length, 0);
+  assert.strictEqual(r.data.questions.length, 0);
 }
 
 main().catch((e) => {

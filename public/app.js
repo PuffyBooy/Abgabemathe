@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 let me = null;
 let sheets = [];
 let current = null;
+let mode = 'done'; // 'done' = erledigt ankreuzen, 'question' = Frage markieren
 
 const store = {
   get(k, fallback) { try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; } },
@@ -77,9 +78,11 @@ async function loadSheets() {
     sheets = data.sheets;
     if (current) {
       const updated = sheets.find((s) => s.id === current.id);
-      const changed = !updated || updated.tasks.join() !== current.tasks.join() || updated.myDone.join() !== current.myDone.join();
+      const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest('#questions');
+      const changed = !updated || updated.tasks.join() !== current.tasks.join() || updated.myDone.join() !== current.myDone.join()
+        || JSON.stringify(updated.myQuestions) !== JSON.stringify(current.myQuestions);
       current = updated || null;
-      if (changed) renderTasks();
+      if (changed && !typing) renderTasks();
       else renderHeader();
     } else {
       const remembered = sheets.find((s) => s.id === store.get('sheet', null));
@@ -99,9 +102,10 @@ function renderSheets() {
   }
   $('sheets').innerHTML = sheets.map((s) => {
     const met = s.myDone.length >= s.required;
-    const mine = s.mySubmissions
+    const openQ = s.myQuestions.filter((q) => !q.resolved).length;
+    const mine = (s.mySubmissions
       ? ` · <span style="color:var(--${met ? 'ok' : 'warn'})">${met ? '✓ erfüllt' : `${s.myDone.length}/${s.tasks.length} erledigt`}</span>`
-      : '';
+      : '') + (openQ ? ` · <span class="qbadge">❓ ${openQ}</span>` : '');
     const status = !s.acceptsSubmissions
       ? '<span class="badge bad">geschlossen</span>'
       : s.deadline ? timerHtml(s.deadline).replace('class="timer', 'class="badge') : '<span class="badge">ohne Frist</span>';
@@ -141,10 +145,17 @@ function renderTasks() {
   $('taskCard').classList.remove('hidden');
   const prev = new Set(current.myDone);
   const checked = new Set([...$('tasks').querySelectorAll('input:checked')].map((i) => i.value));
-  $('tasks').innerHTML = current.tasks.map((t) => `
-    <label class="task ${prev.has(t) ? 'prev' : ''}" title="${prev.has(t) ? 'schon abgegeben' : ''}">
+  const questions = new Map(current.myQuestions.map((q) => [q.task, q]));
+  $('tasks').innerHTML = current.tasks.map((t) => {
+    const q = questions.get(t);
+    const qClass = q ? (q.resolved ? 'q resolved' : 'q') : '';
+    return `<label class="task ${prev.has(t) ? 'prev' : ''} ${qClass}" data-task="${esc(t)}" title="${prev.has(t) ? 'schon abgegeben' : ''}">
       <input type="checkbox" value="${esc(t)}" ${prev.has(t) || checked.has(t) ? 'checked' : ''}>${esc(t)}${partsOf(current, t).length ? `<small>${esc(partsOf(current, t).join(' '))}</small>` : ''}
-    </label>`).join('');
+      ${q ? `<span class="qmark" title="${q.resolved ? 'Frage beantwortet' : 'Frage markiert'}">${q.resolved ? '✓?' : '?'}</span>` : ''}
+    </label>`;
+  }).join('');
+  renderQuestions();
+  renderMode();
   $('prevInfo').textContent = prev.size
     ? `Gestrichelt = schon abgegeben (${prev.size} von ${current.tasks.length}, ${current.mySubmissions} Abgabe${current.mySubmissions === 1 ? '' : 'n'}).`
     : '';
@@ -201,6 +212,91 @@ $('submitBtn').onclick = async () => {
     renderHeader();
   }
 };
+
+// ---------- Fragen markieren ----------
+
+function renderMode() {
+  document.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  $('tasks').classList.toggle('question-mode', mode === 'question');
+  $('modeHint').textContent = mode === 'done'
+    ? 'Tippe alle Beispiele an, die du fertig hast. Du kannst später nochmal abgeben – neue Beispiele werden dazugezählt.'
+    : 'Tippe die Beispiele an, bei denen du eine Frage hast. Wird sofort gespeichert – deine Lehrkraft sieht es.';
+}
+document.querySelectorAll('[data-mode]').forEach((b) => {
+  b.onclick = () => { mode = b.dataset.mode; renderMode(); };
+});
+
+// Im Fragen-Modus markiert ein Tipp auf ein Beispiel eine Frage statt es abzuhaken
+$('tasks').addEventListener('click', (e) => {
+  if (mode !== 'question') return;
+  const tile = e.target.closest('.task');
+  if (!tile) return;
+  e.preventDefault();
+  toggleQuestion(tile.dataset.task);
+});
+
+async function saveQuestion(task, body) {
+  try {
+    const r = await api(`sheets/${encodeURIComponent(current.id)}/question`, { method: 'POST', body: { task, ...body } });
+    current.myQuestions = r.myQuestions;
+    const s = sheets.find((x) => x.id === current.id);
+    if (s) s.myQuestions = r.myQuestions;
+    return true;
+  } catch (err) {
+    $('message').innerHTML = `<div class="msg err">${esc(err.message)}</div>`;
+    return false;
+  }
+}
+
+async function toggleQuestion(task) {
+  const exists = current.myQuestions.some((q) => q.task === task);
+  if (!(await saveQuestion(task, exists ? { remove: true } : { text: '' }))) return;
+  renderTasks();
+  renderSheets();
+  if (!exists) {
+    const input = $('questions').querySelector(`input[data-task="${CSS.escape(task)}"]`);
+    if (input) input.focus();
+  }
+}
+
+function renderQuestions() {
+  const list = current.myQuestions;
+  if (!list.length) {
+    $('questions').innerHTML = '';
+    return;
+  }
+  $('questions').innerHTML = `<h3>❓ Deine Fragen</h3>
+    ${list.map((q) => `<div class="question-row ${q.resolved ? 'resolved' : ''}">
+      <b>${esc(q.task)}</b>
+      <input type="text" data-task="${esc(q.task)}" value="${esc(q.text)}" maxlength="300" placeholder="Was ist unklar? (optional)">
+      ${q.resolved ? '<span class="badge ok" title="Deine Lehrkraft hat die Frage als beantwortet markiert">✓ beantwortet</span>' : ''}
+      <button type="button" class="ghost small" data-unmark="${esc(q.task)}" title="Frage entfernen">✕</button>
+    </div>`).join('')}
+    <p class="muted small" style="margin: 4px 0 0">Wird automatisch gespeichert.</p>`;
+  $('questions').querySelectorAll('input').forEach((input) => {
+    const save = async () => {
+      const q = current.myQuestions.find((x) => x.task === input.dataset.task);
+      if (!q || q.text === input.value.trim()) return;
+      if (await saveQuestion(input.dataset.task, { text: input.value })) {
+        input.classList.add('saved');
+        setTimeout(() => input.classList.remove('saved'), 1200);
+        renderSheets();
+        const row = input.closest('.question-row');
+        const updated = current.myQuestions.find((x) => x.task === input.dataset.task);
+        if (row && updated && !updated.resolved) {
+          row.classList.remove('resolved');
+          const badge = row.querySelector('.badge');
+          if (badge) badge.remove();
+        }
+      }
+    };
+    input.onchange = save;
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
+  });
+  $('questions').querySelectorAll('[data-unmark]').forEach((b) => {
+    b.onclick = () => toggleQuestion(b.dataset.unmark);
+  });
+}
 
 // ---------- Start ----------
 

@@ -1,7 +1,8 @@
 // Lehrerseite
 const $ = (id) => document.getElementById(id);
 let me = null;
-let data = { sheets: [], submissions: [], users: [] };
+let data = { sheets: [], submissions: [], users: [], questions: [] };
+let showResolved = false;
 let usersById = new Map();
 let tab = sessionStorage.getItem('teacherTab') || 'overview';
 let filterKlasse = '';
@@ -170,6 +171,12 @@ function statusBadge(st, need) {
 
 const pendingUsers = () => data.users.filter((u) => u.status === 'pending');
 
+// Fragen zu einem Blatt (nur von existierenden Konten und zu Beispielen, die es noch gibt)
+function questionsOf(sheet, { onlyOpen = false } = {}) {
+  return (data.questions || []).filter((q) => q.sheetId === sheet.id && usersById.has(q.userId) && sheet.tasks.includes(q.task)
+    && (!onlyOpen || !q.resolved));
+}
+
 // ---------- Darstellung ----------
 
 function render() {
@@ -201,12 +208,12 @@ function renderTabs() {
   const pending = pendingUsers().length;
   const items = [
     ['overview', '📋 Gesamtübersicht'],
-    ...data.sheets.map((s) => [s.id, s.title]),
+    ...data.sheets.map((s) => [s.id, s.title, 0, questionsOf(s, { onlyOpen: true }).length]),
     ['manage', '⚙️ Blätter verwalten'],
     ['accounts', '👥 Konten', pending],
   ];
   $('tabs').innerHTML = items
-    .map(([id, label, count]) => `<button type="button" class="${tab === id ? 'active' : ''}" data-tab="${esc(id)}">${esc(label)}${count ? ` <span class="count">${count}</span>` : ''}</button>`)
+    .map(([id, label, count, qCount]) => `<button type="button" class="${tab === id ? 'active' : ''}" data-tab="${esc(id)}">${esc(label)}${count ? ` <span class="count">${count}</span>` : ''}${qCount ? ` <span class="count q" title="offene Fragen">? ${qCount}</span>` : ''}</button>`)
     .join('');
   $('tabs').querySelectorAll('button').forEach((b) => {
     b.onclick = () => {
@@ -294,7 +301,7 @@ function renderOverview() {
     <p class="muted small">Erledigte Beispiele pro Schüler und Blatt (alle Abgaben zusammengerechnet). ✓ = Blatt erfüllt, – = noch nichts abgegeben. Aktualisiert sich automatisch.</p>
     ${filterBarHtml()}
     ${students.length ? `<div class="table-wrap"><table>
-      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheets.map((s) => `<th class="c">${esc(s.title)}<br><span class="muted">${s.klasse ? 'nur ' + esc(s.klasse) + ' · ' : ''}${s.deadline ? fmtDate(s.deadline) : 'ohne Frist'} · ${requiredOf(s)}/${s.tasks.length} nötig</span></th>`).join('')}<th class="c">Blätter<br>erfüllt</th></tr></thead>
+      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheets.map((s) => `<th class="c">${esc(s.title)}<br><span class="muted">${s.klasse ? 'nur ' + esc(s.klasse) + ' · ' : ''}${s.deadline ? fmtDate(s.deadline) : 'ohne Frist'} · ${requiredOf(s)}/${s.tasks.length} nötig</span>${questionsOf(s, { onlyOpen: true }).length ? `<br><span class="qbadge">❓ ${questionsOf(s, { onlyOpen: true }).length} offene Fragen</span>` : ''}</th>`).join('')}<th class="c">Blätter<br>erfüllt</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td class="sticky">${students.length} Schüler</td><td></td>${foot}<td></td></tr></tfoot>
     </table></div>` : '<p class="muted">Noch keine Schüler-Konten. Schüler können auf der Startseite ein Konto anfragen.</p>'}
@@ -326,12 +333,18 @@ function renderSheet(sheet) {
   const lateCount = students.filter((s) => s.late).length;
   const subCount = students.reduce((a, s) => a + s.subs.length, 0);
 
+  const openQ = questionsOf(sheet, { onlyOpen: true });
+  const qByCell = new Map(openQ.map((q) => [q.userId + '|' + q.task, q]));
+  const cellQ = (st, t) => {
+    const q = qByCell.get(st.key + '|' + t);
+    return q ? `<span class="cellq" title="Frage${q.text ? ': ' + esc(q.text) : ''}">?</span>` : '';
+  };
   const rows = students.map((st) => `<tr class="${st.subs.length ? '' : 'missing'}">
       <td class="sticky">${esc(st.name)}${st.late ? ' <span class="badge warn">spät</span>' : ''}</td>
       <td>${esc(st.klasse)}</td>
       ${sheet.tasks.map((t) => st.done.has(t)
-        ? `<td class="c yes" title="${st.onTime.has(t) ? 'rechtzeitig' : 'verspätet'}">${st.onTime.has(t) ? '✓' : '<span style="color:var(--warn)">✓</span>'}</td>`
-        : '<td class="c no">·</td>').join('')}
+        ? `<td class="c yes" title="${st.onTime.has(t) ? 'rechtzeitig' : 'verspätet'}">${st.onTime.has(t) ? '✓' : '<span style="color:var(--warn)">✓</span>'}${cellQ(st, t)}</td>`
+        : `<td class="c no">·${cellQ(st, t)}</td>`).join('')}
       <td>${st.done.size}/${n}</td>
       <td>${progressHtml(st.done.size, n, need)}</td>
       <td>${statusBadge(st, need)}</td>
@@ -366,15 +379,19 @@ function renderSheet(sheet) {
     </div>
     ${filterBarHtml()}
     ${students.length ? `<div class="table-wrap"><table>
-      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheet.tasks.map((t) => `<th class="c">${esc(t)}${partsOf(sheet, t).length ? `<br><span class="muted">${esc(partsOf(sheet, t).join(''))}</span>` : ''}</th>`).join('')}<th>Erledigt</th><th></th><th>Status</th><th class="c">Abgaben</th><th>Letzte Abgabe</th></tr></thead>
+      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheet.tasks.map((t) => {
+        const qn = openQ.filter((q) => q.task === t).length;
+        return `<th class="c">${esc(t)}${partsOf(sheet, t).length ? `<br><span class="muted">${esc(partsOf(sheet, t).join(''))}</span>` : ''}${qn ? `<br><span class="qbadge" title="${qn} offene Fragen">❓${qn}</span>` : ''}</th>`;
+      }).join('')}<th>Erledigt</th><th></th><th>Status</th><th class="c">Abgaben</th><th>Letzte Abgabe</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td class="sticky">Wie viele haben's?</td><td></td>${colTotals}<td colspan="5"></td></tr></tfoot>
     </table></div>
-    <p class="muted small">✓ grün = rechtzeitig, <span style="color:var(--warn)">✓</span> orange = nur verspätet abgegeben.</p>` : '<p class="muted">Noch keine Schüler für dieses Blatt.</p>'}
+    <p class="muted small">✓ grün = rechtzeitig, <span style="color:var(--warn)">✓</span> orange = nur verspätet abgegeben, <span class="cellq" style="position:static">?</span> = Frage markiert.</p>` : '<p class="muted">Noch keine Schüler für dieses Blatt.</p>'}
     <div class="actions" style="margin-top: 12px">
       <button type="button" class="secondary small" id="csvSheet" ${students.length ? '' : 'disabled'}>CSV exportieren</button>
     </div>
   </section>
+  ${questionsCardHtml(sheet)}
   <section class="card">
     <details class="history">
       <summary>Alle einzelnen Abgaben (${history.length})</summary>
@@ -392,6 +409,7 @@ function renderSheet(sheet) {
   ${students.some((s) => s.subs.some((x) => x.comment)) ? `<section class="card"><h2>Kommentare</h2>${students.flatMap((st) => st.subs.filter((x) => x.comment).map((x) => `<p><b>${esc(st.name)}</b> <span class="muted small">${fmtDate(x.createdAt)}</span><br>${esc(x.comment)}</p>`)).join('')}</section>` : ''}`;
 
   bindFilters();
+  bindQuestionsCard();
   $('view').querySelector('details.history').open = sessionStorage.getItem('historyOpen') === '1';
   $('view').querySelector('details.history').ontoggle = (e) => sessionStorage.setItem('historyOpen', e.target.open ? '1' : '0');
   $('view').querySelectorAll('[data-del]').forEach((b) => {
@@ -409,6 +427,56 @@ function renderSheet(sheet) {
     ]);
     downloadCsv(sheet.title.replace(/[^\w\-äöüÄÖÜß ]+/g, '_') + '.csv', [header, ...lines]);
   };
+}
+
+// Fragen-Karte: gruppiert nach Beispiel, meistgefragte zuerst
+function questionsCardHtml(sheet) {
+  const all = questionsOf(sheet).filter((q) => matchesFilter(usersById.get(q.userId)));
+  if (!all.length) return '';
+  const open = all.filter((q) => !q.resolved);
+  const shown = showResolved ? all : open;
+  const groups = sheet.tasks
+    .map((t) => ({ task: t, items: shown.filter((q) => q.task === t), open: open.filter((q) => q.task === t).length }))
+    .filter((g) => g.items.length)
+    .sort((a, b) => b.open - a.open || sheet.tasks.indexOf(a.task) - sheet.tasks.indexOf(b.task));
+  const resolvedCount = all.length - open.length;
+  return `<section class="card">
+    <div class="actions" style="justify-content: space-between">
+      <h2 style="margin:0">❓ Fragen ${open.length ? `<span class="count q">${open.length}</span>` : ''}</h2>
+      ${resolvedCount ? `<label class="checkline small"><input type="checkbox" id="showResolved" ${showResolved ? 'checked' : ''}> beantwortete anzeigen (${resolvedCount})</label>` : ''}
+    </div>
+    <p class="muted small">Beispiele, bei denen Schüler eine Frage markiert haben – die meistgefragten zuerst. Gut zum Besprechen in der Stunde.</p>
+    ${groups.length ? groups.map((g) => `<div class="qgroup">
+      <div class="actions" style="justify-content: space-between">
+        <h3 style="margin:0">${esc(g.task)}${partsOf(sheet, g.task).length ? ` <span class="muted small">${esc(partsOf(sheet, g.task).join(''))}</span>` : ''}
+          <span class="muted small">· ${g.open} offen${g.items.length > g.open ? `, ${g.items.length - g.open} beantwortet` : ''}</span></h3>
+        ${g.open > 1 ? `<button type="button" class="secondary small" data-resolve-task="${esc(g.task)}">Alle zu ${esc(g.task)} beantwortet</button>` : ''}
+      </div>
+      <ul>${g.items.map((q) => {
+        const u = usersById.get(q.userId);
+        return `<li class="${q.resolved ? 'resolved' : ''}">
+          <span><b>${esc(u.name)}</b> <span class="muted small">${esc(u.klasse)} · ${fmtDate(q.updatedAt)}</span>
+          ${q.text ? `<br>„${esc(q.text)}“` : ''}</span>
+          <button type="button" class="${q.resolved ? 'ghost' : 'secondary'} small" data-resolve="${esc(q.id)}" data-resolved="${q.resolved ? '0' : '1'}">${q.resolved ? 'wieder öffnen' : '✓ beantwortet'}</button>
+        </li>`;
+      }).join('')}</ul>
+    </div>`).join('') : '<p class="muted">Alle Fragen sind beantwortet. 🎉</p>'}
+  </section>`;
+}
+
+function bindQuestionsCard() {
+  const cb = $('showResolved');
+  if (cb) cb.onchange = () => { showResolved = cb.checked; render(); };
+  $('view').querySelectorAll('[data-resolve]').forEach((b) => {
+    b.onclick = () => userAction(() => adminApi(`/questions/${b.dataset.resolve}/resolve`, { method: 'POST', body: { resolved: b.dataset.resolved === '1' } }));
+  });
+  $('view').querySelectorAll('[data-resolve-task]').forEach((b) => {
+    b.onclick = () => userAction(async () => {
+      const sheet = data.sheets.find((s) => s.id === tab);
+      const open = questionsOf(sheet, { onlyOpen: true }).filter((q) => q.task === b.dataset.resolveTask && matchesFilter(usersById.get(q.userId)));
+      for (const q of open) await adminApi(`/questions/${q.id}/resolve`, { method: 'POST', body: { resolved: true } });
+    });
+  });
 }
 
 function tickTimers() {

@@ -149,6 +149,17 @@ function ensureSchema(PDO $pdo): void
         created_at VARCHAR(30) NOT NULL,
         late INT NOT NULL DEFAULT 0
     )$suffix");
+    // Fragen: Schüler markieren Beispiele, bei denen sie etwas nicht verstanden haben
+    $pdo->exec("CREATE TABLE IF NOT EXISTS questions (
+        id VARCHAR(32) NOT NULL PRIMARY KEY,
+        sheet_id VARCHAR(32) NOT NULL,
+        user_id VARCHAR(32) NOT NULL,
+        task VARCHAR(40) NOT NULL,
+        text TEXT NULL,
+        created_at VARCHAR(30) NOT NULL,
+        updated_at VARCHAR(30) NOT NULL,
+        resolved_at VARCHAR(30) NULL
+    )$suffix");
 }
 
 function q(string $sql, array $params = []): PDOStatement
@@ -377,6 +388,23 @@ function sheetVisibleFor(array $s, array $user): bool
     return (int) $s['is_open'] && ($s['klasse'] === '' || strcasecmp($s['klasse'], $user['klasse']) === 0);
 }
 
+// Eigene Fragen eines Schülers zu einem Blatt, in der Reihenfolge der Beispiele
+function myQuestions(array $s, string $userId): array
+{
+    $tasks = json_decode($s['tasks'], true) ?: [];
+    $byTask = [];
+    foreach (q('SELECT * FROM questions WHERE sheet_id = ? AND user_id = ?', [$s['id'], $userId]) as $row) {
+        $byTask[$row['task']] = $row;
+    }
+    $out = [];
+    foreach ($tasks as $t) {
+        if (isset($byTask[$t])) {
+            $out[] = ['task' => $t, 'text' => $byTask[$t]['text'] ?? '', 'resolved' => $byTask[$t]['resolved_at'] !== null];
+        }
+    }
+    return $out;
+}
+
 function doneTasksOf(string $sheetId, string $userId): array
 {
     $done = [];
@@ -521,6 +549,7 @@ function route(string $method, array $p): array
                 return isset($done[$t]);
             }));
             $sheet['mySubmissions'] = $count;
+            $sheet['myQuestions'] = myQuestions($s, $u['id']);
             $out[] = $sheet;
         }
         return [200, ['serverTime' => nowIso(), 'sheets' => $out]];
@@ -564,6 +593,39 @@ function route(string $method, array $p): array
         ]];
     }
 
+    // Frage zu einem Beispiel markieren, Text ändern oder wieder entfernen.
+    // Geht auch nach der Frist – Fragen kann man immer stellen.
+    if ($method === 'POST' && $r0 === 'sheets' && $n === 3 && $p[2] === 'question') {
+        $u = requireUser();
+        $s = q('SELECT * FROM sheets WHERE id = ?', [$p[1]])->fetch();
+        if (!$s || !sheetVisibleFor($s, $u)) {
+            throw new ApiError(404, 'Dieses Aufgabenblatt gibt es nicht (mehr).');
+        }
+        $b = body();
+        $task = clean($b['task'] ?? '', 40);
+        if (!in_array($task, json_decode($s['tasks'], true) ?: [], true)) {
+            throw new ApiError(400, 'Dieses Beispiel gibt es auf dem Blatt nicht.');
+        }
+        $existing = q('SELECT * FROM questions WHERE sheet_id = ? AND user_id = ? AND task = ?', [$s['id'], $u['id'], $task])->fetch();
+        if (!empty($b['remove'])) {
+            if ($existing) {
+                q('DELETE FROM questions WHERE id = ?', [$existing['id']]);
+            }
+        } else {
+            $text = clean($b['text'] ?? '', 300);
+            if ($existing) {
+                // Geänderte Frage gilt wieder als offen
+                $reopen = $text !== (string) ($existing['text'] ?? '');
+                q('UPDATE questions SET text = ?, updated_at = ?, resolved_at = ' . ($reopen ? 'NULL' : 'resolved_at') . ' WHERE id = ?', [$text, nowIso(), $existing['id']]);
+            } else {
+                q('INSERT INTO questions (id, sheet_id, user_id, task, text, created_at, updated_at) VALUES (?,?,?,?,?,?,?)', [
+                    newId(), $s['id'], $u['id'], $task, $text, nowIso(), nowIso(),
+                ]);
+            }
+        }
+        return [200, ['myQuestions' => myQuestions($s, $u['id'])]];
+    }
+
     // ----- Lehrerbereich -----
 
     if ($r0 === 'admin') {
@@ -585,7 +647,20 @@ function route(string $method, array $p): array
                 ];
             }
             $users = array_map('publicUser', q('SELECT * FROM users ORDER BY klasse, name')->fetchAll());
-            return [200, ['serverTime' => nowIso(), 'me' => publicUser($me), 'sheets' => $sheets, 'submissions' => $subs, 'users' => $users]];
+            $questions = [];
+            foreach (q('SELECT * FROM questions ORDER BY created_at') as $row) {
+                $questions[] = [
+                    'id' => $row['id'],
+                    'sheetId' => $row['sheet_id'],
+                    'userId' => $row['user_id'],
+                    'task' => $row['task'],
+                    'text' => $row['text'] ?? '',
+                    'createdAt' => $row['created_at'],
+                    'updatedAt' => $row['updated_at'],
+                    'resolved' => $row['resolved_at'] !== null,
+                ];
+            }
+            return [200, ['serverTime' => nowIso(), 'me' => publicUser($me), 'sheets' => $sheets, 'submissions' => $subs, 'users' => $users, 'questions' => $questions]];
         }
 
         // Blätter
@@ -611,7 +686,25 @@ function route(string $method, array $p): array
             }
             if ($method === 'DELETE') {
                 q('DELETE FROM submissions WHERE sheet_id = ?', [$s['id']]);
+                q('DELETE FROM questions WHERE sheet_id = ?', [$s['id']]);
                 q('DELETE FROM sheets WHERE id = ?', [$s['id']]);
+                return [200, ['ok' => true]];
+            }
+        }
+
+        // Frage als beantwortet markieren (oder wieder öffnen) bzw. löschen
+        if ($r1 === 'questions' && $n >= 3) {
+            $qu = q('SELECT * FROM questions WHERE id = ?', [$p[2]])->fetch();
+            if (!$qu) {
+                throw new ApiError(404, 'Frage nicht gefunden.');
+            }
+            if ($method === 'POST' && ($p[3] ?? '') === 'resolve') {
+                $resolved = !array_key_exists('resolved', body()) || !empty(body()['resolved']);
+                q('UPDATE questions SET resolved_at = ? WHERE id = ?', [$resolved ? nowIso() : null, $qu['id']]);
+                return [200, ['ok' => true]];
+            }
+            if ($method === 'DELETE' && $n === 3) {
+                q('DELETE FROM questions WHERE id = ?', [$qu['id']]);
                 return [200, ['ok' => true]];
             }
         }
@@ -671,6 +764,7 @@ function route(string $method, array $p): array
                     throw new ApiError(400, 'Du kannst dein eigenes Konto nicht löschen.');
                 }
                 q('DELETE FROM submissions WHERE user_id = ?', [$u['id']]);
+                q('DELETE FROM questions WHERE user_id = ?', [$u['id']]);
                 q('DELETE FROM users WHERE id = ?', [$u['id']]);
                 return [200, ['ok' => true]];
             }

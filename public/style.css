@@ -225,3 +225,35 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: .
 dialog { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--text); padding: 20px; width: min(420px, calc(100vw - 32px)); }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
 dialog h2 { margin-top: 0; font-size: 1.1rem; }
+
+/* Fragen markieren */
+.modes { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.modes button { background: var(--card); color: var(--text); border-color: var(--border); }
+.modes button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.modes button[data-mode="question"].active { background: var(--warn); border-color: var(--warn); }
+.task-grid.question-mode .task { cursor: help; border-style: dotted; }
+.task .qmark {
+  position: absolute; top: -8px; left: -8px; min-width: 22px; height: 22px; padding: 0 4px;
+  border-radius: 99px; background: var(--warn); color: #fff; font-size: .75rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--card);
+}
+.task.q.resolved .qmark { background: var(--ok); }
+.task.q:not(.resolved) { box-shadow: inset 0 0 0 1px var(--warn); }
+.questions h3 { margin: 16px 0 8px; }
+.question-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.question-row b { min-width: 44px; color: var(--warn); }
+.question-row.resolved b { color: var(--ok); }
+.question-row input { flex: 1; min-width: 0; }
+.question-row input.saved { outline: 2px solid var(--ok); }
+.qbadge { color: var(--warn); font-weight: 600; }
+.count.q { background: var(--warn); }
+.tabs button.active .count.q { background: #fff; color: var(--warn); }
+td.c { position: relative; }
+.cellq {
+  position: absolute; top: 2px; right: 2px; display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 99px; background: var(--warn); color: #fff; font-size: .65rem; font-weight: 800; cursor: help;
+}
+.qgroup { border-top: 1px solid var(--border); padding: 12px 0 4px; }
+.qgroup ul { list-style: none; padding: 0; margin: 8px 0 0; }
+.qgroup li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; }
+.qgroup li.resolved { opacity: .6; }

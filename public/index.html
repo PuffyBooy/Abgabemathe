@@ -87,9 +87,13 @@
         <p id="sheetDesc" class="muted small"></p>
         <p class="muted small" id="deadlineInfo"></p>
 
-        <h3>Welche Beispiele hast du gemacht?</h3>
-        <p class="muted small">Tippe alle Beispiele an, die du fertig hast. Du kannst später nochmal abgeben – neue Beispiele werden dazugezählt.</p>
+        <div class="modes" role="group" aria-label="Was möchtest du markieren?">
+          <button type="button" class="active" data-mode="done">✓ Erledigt ankreuzen</button>
+          <button type="button" data-mode="question">❓ Frage markieren</button>
+        </div>
+        <p class="muted small" id="modeHint"></p>
         <div id="tasks" class="task-grid"></div>
+        <div id="questions" class="questions"></div>
         <div id="goal" class="goal"></div>
         <div class="actions" style="margin-top: 10px">
           <button type="button" class="ghost small" id="allBtn">Alle ankreuzen</button>
