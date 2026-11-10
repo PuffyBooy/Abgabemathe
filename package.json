@@ -1,15 +1,12 @@
 {
   "name": "abgabemathe",
-  "version": "1.0.0",
-  "description": "Mathe-Abgaben: Schüler kreuzen erledigte Aufgaben an, Lehrer sieht die Übersicht.",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "Mathe-Abgaben mit Konten: Schüler kreuzen erledigte Beispiele an, die Lehrkraft sieht die Übersicht. PHP + MySQL (z. B. World4You).",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
+    "start": "php -S localhost:8000 -t public",
     "test": "node test.js",
     "build:pages": "node scripts/build-pages.js"
-  },
-  "engines": {
-    "node": ">=18"
   },
   "license": "MIT"
 }

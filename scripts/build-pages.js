@@ -8,7 +8,12 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, '_site');
 
 fs.rmSync(out, { recursive: true, force: true });
-fs.cpSync(path.join(root, 'public'), out, { recursive: true });
+// PHP-Backend, Konfiguration und Daten gehören nicht in die Demo
+const skip = new Set(['api.php', 'config.php', 'config.sample.php', '.htaccess', 'data']);
+fs.cpSync(path.join(root, 'public'), out, {
+  recursive: true,
+  filter: (src) => !skip.has(path.relative(path.join(root, 'public'), src).split(path.sep)[0]),
+});
 fs.copyFileSync(path.join(root, 'demo', 'demo.js'), path.join(out, 'demo.js'));
 fs.writeFileSync(path.join(out, '.nojekyll'), '');
 

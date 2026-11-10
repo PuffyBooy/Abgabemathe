@@ -11,23 +11,61 @@
   <header class="top">
     <div class="inner">
       <h1>📊 Lehrerbereich</h1>
-      <div class="actions">
+      <div class="actions" id="userBox">
         <a href="./">Zur Schülerseite</a>
-        <button type="button" class="ghost small hidden" id="logoutBtn">Abmelden</button>
       </div>
     </div>
   </header>
 
   <main>
+    <p id="loading" class="muted">Lade …</p>
+
     <section class="card hidden" id="loginCard" style="max-width: 420px; margin: 40px auto">
-      <h2>Anmelden</h2>
+      <h2>Anmelden (Lehrkraft)</h2>
       <form id="loginForm">
         <div class="field">
-          <label for="pw">Lehrer-Passwort</label>
-          <input id="pw" type="password" autocomplete="current-password">
+          <label for="lUser">Benutzername</label>
+          <input id="lUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="field">
+          <label for="pw">Passwort</label>
+          <input id="pw" type="password" autocomplete="current-password" required>
         </div>
         <div id="loginMsg"></div>
         <button type="submit">Anmelden</button>
+      </form>
+    </section>
+
+    <!-- Ersteinrichtung: erstes Lehrer-Konto -->
+    <section class="card hidden" id="setupCard" style="max-width: 520px; margin: 40px auto">
+      <h2>👋 Ersteinrichtung</h2>
+      <p class="muted small">Es gibt noch kein Lehrer-Konto. Lege jetzt deines an. Den Einrichtungs-Code hast du in der
+        Datei <code>config.php</code> bei <code>setup_code</code> eingetragen.</p>
+      <form id="setupForm">
+        <div class="field">
+          <label for="sCode">Einrichtungs-Code</label>
+          <input id="sCode" type="password" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="sName">Dein Name</label>
+          <input id="sName" type="text" autocomplete="name" placeholder="z. B. Mag. Huber" required>
+        </div>
+        <div class="field">
+          <label for="sUser">Benutzername</label>
+          <input id="sUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="sPw">Passwort</label>
+            <input id="sPw" type="password" autocomplete="new-password" minlength="6" required>
+          </div>
+          <div class="field">
+            <label for="sPw2">Passwort wiederholen</label>
+            <input id="sPw2" type="password" autocomplete="new-password" minlength="6" required>
+          </div>
+        </div>
+        <div id="setupMsg"></div>
+        <button type="submit">Lehrer-Konto anlegen</button>
       </form>
     </section>
 
@@ -44,7 +82,11 @@
               <label for="fTitle">Titel</label>
               <input id="fTitle" type="text" maxlength="120" placeholder="z. B. Hausübung 5 – Bruchrechnen" required>
             </div>
-            <div class="field" style="flex: 0 1 170px">
+            <div class="field" style="flex: 0 1 150px">
+              <label for="fKlasseSheet">Für Klasse</label>
+              <input id="fKlasseSheet" type="text" list="klassenList" maxlength="30" placeholder="alle">
+            </div>
+            <div class="field" style="flex: 0 1 130px">
               <label for="fMin">Erfüllt ab (%)</label>
               <input id="fMin" type="number" min="1" max="100" step="1" value="80" required>
             </div>
@@ -84,6 +126,7 @@
           </div>
         </form>
       </section>
+      <datalist id="klassenList"></datalist>
       <section class="card hidden" id="sheetListCard">
         <h2>Alle Aufgabenblätter</h2>
         <div id="sheetList"></div>

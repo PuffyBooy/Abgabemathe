@@ -1,4 +1,7 @@
 node_modules/
-data/
-.env
 _site/
+.env
+# Zugangsdaten und Daten nie einchecken
+public/config.php
+public/data/*
+!public/data/.htaccess

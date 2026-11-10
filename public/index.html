@@ -11,56 +11,101 @@
   <header class="top">
     <div class="inner">
       <h1>📐 Mathe-Abgabe</h1>
-      <a href="lehrer.html">Lehrerbereich</a>
+      <div class="actions" id="userBox">
+        <a href="lehrer.html">Lehrerbereich</a>
+      </div>
     </div>
   </header>
 
   <main class="narrow">
-    <section class="card">
-      <h2>1. Wer bist du?</h2>
-      <div class="row">
+    <p id="loading" class="muted">Lade …</p>
+
+    <!-- Nicht angemeldet: Anmelden oder Konto anfragen -->
+    <section class="card hidden" id="authCard">
+      <nav class="tabs" role="tablist">
+        <button type="button" class="active" data-auth="login">Anmelden</button>
+        <button type="button" data-auth="register">Konto anfragen</button>
+      </nav>
+
+      <form id="loginForm">
         <div class="field">
-          <label for="name">Vor- und Nachname</label>
-          <input id="name" type="text" autocomplete="name" maxlength="80" placeholder="z. B. Lena Huber">
+          <label for="lUser">Benutzername</label>
+          <input id="lUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
         </div>
-        <div class="field" style="flex: 0 1 140px">
-          <label for="klasse">Klasse</label>
-          <input id="klasse" type="text" maxlength="30" placeholder="z. B. 3B">
+        <div class="field">
+          <label for="lPw">Passwort</label>
+          <input id="lPw" type="password" autocomplete="current-password" required>
         </div>
-      </div>
+        <div id="loginMsg"></div>
+        <button type="submit">Anmelden</button>
+        <p class="muted small">Noch kein Konto? Unter „Konto anfragen“ registrieren – deine Lehrkraft schaltet dich frei.</p>
+      </form>
+
+      <form id="registerForm" class="hidden">
+        <div class="row">
+          <div class="field">
+            <label for="rName">Vor- und Nachname</label>
+            <input id="rName" type="text" autocomplete="name" maxlength="80" placeholder="z. B. Lena Huber" required>
+          </div>
+          <div class="field" style="flex: 0 1 120px">
+            <label for="rKlasse">Klasse</label>
+            <input id="rKlasse" type="text" maxlength="30" placeholder="3B" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="rUser">Benutzername</label>
+          <input id="rUser" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="30" required>
+          <p class="muted small" style="margin: 4px 0 0">Damit meldest du dich später an. Nur a–z, Zahlen, Punkt, Minus.</p>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="rPw">Passwort</label>
+            <input id="rPw" type="password" autocomplete="new-password" minlength="6" required>
+          </div>
+          <div class="field">
+            <label for="rPw2">Passwort wiederholen</label>
+            <input id="rPw2" type="password" autocomplete="new-password" minlength="6" required>
+          </div>
+        </div>
+        <div id="registerMsg"></div>
+        <button type="submit">Anfrage senden</button>
+      </form>
     </section>
 
-    <section class="card">
-      <h2>2. Aufgabenblatt wählen</h2>
-      <div id="sheets" class="sheet-list"><p class="muted">Lade …</p></div>
-    </section>
+    <!-- Angemeldet -->
+    <div id="mainView" class="hidden">
+      <section class="card">
+        <h2>Aufgabenblatt wählen</h2>
+        <div id="sheets" class="sheet-list"></div>
+      </section>
 
-    <section class="card hidden" id="taskCard">
-      <div class="actions" style="justify-content: space-between; margin-bottom: 10px">
-        <h2 id="sheetTitle" style="margin: 0"></h2>
-        <span id="timer"></span>
-      </div>
-      <p id="sheetDesc" class="muted small"></p>
-      <p class="muted small" id="deadlineInfo"></p>
+      <section class="card hidden" id="taskCard">
+        <div class="actions" style="justify-content: space-between; margin-bottom: 10px">
+          <h2 id="sheetTitle" style="margin: 0"></h2>
+          <span id="timer"></span>
+        </div>
+        <p id="sheetDesc" class="muted small"></p>
+        <p class="muted small" id="deadlineInfo"></p>
 
-      <h3>3. Welche Beispiele hast du gemacht?</h3>
-      <p class="muted small">Tippe alle Beispiele an, die du fertig hast. Du kannst später nochmal abgeben – neue Beispiele werden dazugezählt.</p>
-      <div id="tasks" class="task-grid"></div>
-      <div id="goal" class="goal"></div>
-      <div class="actions" style="margin-top: 10px">
-        <button type="button" class="ghost small" id="allBtn">Alle ankreuzen</button>
-        <button type="button" class="ghost small" id="noneBtn">Keine</button>
-      </div>
+        <h3>Welche Beispiele hast du gemacht?</h3>
+        <p class="muted small">Tippe alle Beispiele an, die du fertig hast. Du kannst später nochmal abgeben – neue Beispiele werden dazugezählt.</p>
+        <div id="tasks" class="task-grid"></div>
+        <div id="goal" class="goal"></div>
+        <div class="actions" style="margin-top: 10px">
+          <button type="button" class="ghost small" id="allBtn">Alle ankreuzen</button>
+          <button type="button" class="ghost small" id="noneBtn">Keine</button>
+        </div>
 
-      <div class="field" style="margin-top: 14px">
-        <label for="comment">Kommentar (optional)</label>
-        <textarea id="comment" maxlength="500" placeholder="z. B. Bei 2.16b hatte ich Probleme …"></textarea>
-      </div>
+        <div class="field" style="margin-top: 14px">
+          <label for="comment">Kommentar (optional)</label>
+          <textarea id="comment" maxlength="500" placeholder="z. B. Bei 2.16b hatte ich Probleme …"></textarea>
+        </div>
 
-      <div id="message"></div>
-      <button type="button" id="submitBtn">Abgeben</button>
-      <p class="muted small" id="prevInfo"></p>
-    </section>
+        <div id="message"></div>
+        <button type="button" id="submitBtn">Abgeben</button>
+        <p class="muted small" id="prevInfo"></p>
+      </section>
+    </div>
   </main>
 
   <script src="core.js"></script>
