@@ -202,7 +202,7 @@ function renderOverview() {
     }).join('');
     const met = metCount(st);
     return `<tr><td class="sticky">${esc(st.name)}</td><td>${esc(st.klasse)}</td>${cells}
-      <td>${progressHtml(met, sheets.length, sheets.length)}</td><td class="c"><b>${met}/${sheets.length}</b></td></tr>`;
+      <td class="c ${met === sheets.length ? 'yes' : ''}"><b>${met}/${sheets.length}</b></td></tr>`;
   }).join('');
 
   const foot = sheets.map((sh) => {
@@ -219,9 +219,9 @@ function renderOverview() {
     <p class="muted small">Erledigte Beispiele pro Schüler und Blatt (alle Abgaben zusammengerechnet). ✓ = Blatt erfüllt (mindestens 80 % bzw. eingestellter Wert). Aktualisiert sich automatisch.</p>
     ${filterBarHtml()}
     ${students.length ? `<div class="table-wrap"><table>
-      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheets.map((s) => `<th class="c">${esc(s.title)}<br><span class="muted">${s.deadline ? fmtDate(s.deadline) : 'ohne Frist'} · ${requiredOf(s)}/${s.tasks.length} nötig</span></th>`).join('')}<th colspan="2">Blätter erfüllt</th></tr></thead>
+      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheets.map((s) => `<th class="c">${esc(s.title)}<br><span class="muted">${s.deadline ? fmtDate(s.deadline) : 'ohne Frist'} · ${requiredOf(s)}/${s.tasks.length} nötig</span></th>`).join('')}<th class="c">Blätter<br>erfüllt</th></tr></thead>
       <tbody>${rows}</tbody>
-      <tfoot><tr><td class="sticky">${students.length} Schüler</td><td></td>${foot}<td colspan="2"></td></tr></tfoot>
+      <tfoot><tr><td class="sticky">${students.length} Schüler</td><td></td>${foot}<td></td></tr></tfoot>
     </table></div>` : '<p class="muted">Noch keine Abgaben.</p>'}
   </section>`;
   bindFilters();
