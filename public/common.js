@@ -40,6 +40,15 @@ function requiredOf(sheet) {
   return window.AbgabeCore.requiredCount(sheet);
 }
 
+// Teilaufgaben eines Beispiels, z. B. 2.16 -> ["a","b","c"]
+function partsOf(sheet, t) {
+  return (sheet.taskParts && sheet.taskParts[t]) || [];
+}
+// "2.16abc" – kompakte Schreibweise für CSV und Bearbeiten
+function taskText(sheet, t) {
+  return t + partsOf(sheet, t).join('');
+}
+
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

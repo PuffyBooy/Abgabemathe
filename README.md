@@ -12,10 +12,11 @@ Der Lehrer sieht eine zusammengefasste Übersicht, wer was abgegeben hat.
 - Countdown bis zur Abgabefrist
 
 **Lehrer** (`/lehrer`, mit Passwort)
-- Aufgabenblätter anlegen, Aufgaben so eingeben wie im Buch – mit Live-Vorschau:
-  - `2.16a b 3.18c 7.19` → 2.16a, 2.16b, 3.18c, 7.19
-  - `2.16a-d` → 2.16a bis 2.16d · `2.16-2.20` → 2.16 bis 2.20
-- **80 %-Regel**: Ein Blatt gilt als erfüllt, wenn mindestens 80 % der Aufgaben erledigt sind
+- Aufgabenblätter anlegen, Beispiele so eingeben wie im Buch – mit Live-Vorschau.
+  Es zählt immer die Nummer: `2.16abc` ist **ein** Beispiel (Teilaufgaben a, b, c werden nur angezeigt).
+  - `2.16abc 3.18c 7.19` → 3 Beispiele: 2.16 (abc), 3.18 (c), 7.19
+  - `2.16a b c` oder `2.16a-c` = dasselbe wie `2.16abc` · `2.16-2.20` → 5 Beispiele
+- **80 %-Regel**: Ein Blatt gilt als erfüllt, wenn mindestens 80 % der Beispiele erledigt sind
   (pro Blatt einstellbar). Schüler sehen live, wie viele noch fehlen.
 - **Zeitlimit**: Frist als Datum/Uhrzeit (Knöpfe „Morgen 8:00“, „In 1 Woche“ …)
 - Nach Ablauf entweder sperren oder späte Abgaben als „verspätet“ markieren

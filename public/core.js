@@ -82,7 +82,7 @@
           out.push(t);
           base = null;
         }
-      } else if ((m = t.match(/^(\d+(?:\.\d+)*)([a-z]{0,4})$/i))) { // 2.16a, 2.16ab, 7.19
+      } else if ((m = t.match(/^(\d+(?:\.\d+)*)([a-z]{0,10})$/i))) { // 2.16a, 2.16ab, 7.19
         base = m[1];
         bareIndex = -1;
         if (m[2]) addLetters([...m[2]]);
@@ -90,7 +90,7 @@
           out.push(base);
           bareIndex = out.length - 1;
         }
-      } else if (base && /^[a-z]{1,4}$/i.test(t)) { // b, bc (zur vorigen Nummer)
+      } else if (base && /^[a-z]{1,10}$/i.test(t)) { // b, bc (zur vorigen Nummer)
         addLetters([...t]);
       } else {
         out.push(t);
@@ -101,7 +101,26 @@
     return [...new Set(out)].slice(0, 300);
   }
 
-  // Wie viele Aufgaben für "erfüllt" nötig sind (Standard: 80 %).
+  // Fasst Teilaufgaben zu Beispielen zusammen – es zählt die Nummer:
+  //   "2.16a b 3.18c 7.19" -> [{ id: "2.16", parts: ["a","b"] }, { id: "3.18", parts: ["c"] }, { id: "7.19", parts: [] }]
+  function parseExamples(input) {
+    const examples = [];
+    const byId = new Map();
+    for (const t of parseTasks(input)) {
+      const m = t.match(/^(\d+(?:\.\d+)*)([a-z])$/);
+      const id = m ? m[1] : t;
+      let ex = byId.get(id);
+      if (!ex) {
+        ex = { id, parts: [] };
+        byId.set(id, ex);
+        examples.push(ex);
+      }
+      if (m && !ex.parts.includes(m[2])) ex.parts.push(m[2]);
+    }
+    return examples;
+  }
+
+  // Wie viele Beispiele für "erfüllt" nötig sind (Standard: 80 %).
   function requiredCount(sheet) {
     const p = sheet.minPercent ?? 80;
     return Math.ceil((sheet.tasks.length * p) / 100 - 1e-9);
@@ -129,6 +148,7 @@
       title: sheet.title,
       description: sheet.description,
       tasks: sheet.tasks,
+      taskParts: sheet.taskParts || {},
       deadline: sheet.deadline,
       lockAfterDeadline: sheet.lockAfterDeadline,
       open: sheet.open,
@@ -140,14 +160,22 @@
 
   function sheetFromBody(body, existing = {}) {
     const title = cleanText(body.title ?? existing.title, 120);
-    const tasks = body.tasks !== undefined ? parseTasks(body.tasks) : existing.tasks;
+    let tasks = existing.tasks;
+    let taskParts = existing.taskParts || {};
+    if (body.tasks !== undefined) {
+      const examples = parseExamples(body.tasks);
+      tasks = examples.map((e) => e.id);
+      taskParts = {};
+      examples.forEach((e) => { if (e.parts.length) taskParts[e.id] = e.parts; });
+    }
     if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
-    if (!tasks || tasks.length === 0) throw new HttpError(400, 'Bitte mindestens eine Aufgabe angeben.');
+    if (!tasks || tasks.length === 0) throw new HttpError(400, 'Bitte mindestens ein Beispiel angeben.');
     return {
       ...existing,
       title,
       description: cleanText(body.description ?? existing.description ?? '', 500),
       tasks,
+      taskParts,
       deadline: body.deadline !== undefined ? parseDeadline(body.deadline) : existing.deadline ?? null,
       lockAfterDeadline: body.lockAfterDeadline !== undefined ? !!body.lockAfterDeadline : !!existing.lockAfterDeadline,
       open: body.open !== undefined ? !!body.open : existing.open ?? true,
@@ -188,7 +216,7 @@
       const valid = new Set(sheet.tasks);
       const tasks = [...new Set((Array.isArray(body.tasks) ? body.tasks : []).map(String))].filter((t) => valid.has(t));
       const comment = cleanText(body.comment, 500);
-      if (tasks.length === 0 && !comment) throw new HttpError(400, 'Bitte mindestens eine Aufgabe ankreuzen.');
+      if (tasks.length === 0 && !comment) throw new HttpError(400, 'Bitte mindestens ein Beispiel ankreuzen.');
 
       const submission = {
         id: newId(),
@@ -255,5 +283,5 @@
     throw new HttpError(404, 'Nicht gefunden.');
   }
 
-  return { HttpError, handle, parseTasks, requiredCount, studentKey, emptyDb, newId };
+  return { HttpError, handle, parseTasks, parseExamples, requiredCount, studentKey, emptyDb, newId };
 });

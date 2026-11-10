@@ -216,7 +216,7 @@ function renderOverview() {
       <h2 style="margin:0">Gesamtübersicht</h2>
       <button type="button" class="secondary small" id="csvAll">CSV exportieren</button>
     </div>
-    <p class="muted small">Erledigte Aufgaben pro Schüler und Blatt (alle Abgaben zusammengerechnet). ✓ = Blatt erfüllt (mindestens 80 % bzw. eingestellter Wert). Aktualisiert sich automatisch.</p>
+    <p class="muted small">Erledigte Beispiele pro Schüler und Blatt (alle Abgaben zusammengerechnet). ✓ = Blatt erfüllt (mindestens 80 % bzw. eingestellter Wert). Aktualisiert sich automatisch.</p>
     ${filterBarHtml()}
     ${students.length ? `<div class="table-wrap"><table>
       <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheets.map((s) => `<th class="c">${esc(s.title)}<br><span class="muted">${s.deadline ? fmtDate(s.deadline) : 'ohne Frist'} · ${requiredOf(s)}/${s.tasks.length} nötig</span></th>`).join('')}<th colspan="2">Blätter erfüllt</th></tr></thead>
@@ -276,7 +276,7 @@ function renderSheet(sheet) {
       <h2 style="margin:0">${esc(sheet.title)} ${sheet.open ? '' : '<span class="badge bad">versteckt</span>'}</h2>
       <span data-deadline="${esc(sheet.deadline || '')}">${timerHtml(sheet.deadline)}</span>
     </div>
-    <p class="muted small">${sheet.description ? esc(sheet.description) + ' · ' : ''}Erfüllt ab ${sheet.minPercent ?? 80} % = <b>${need} von ${n}</b> Aufgaben. ${sheet.deadline ? `Frist: ${fmtDate(sheet.deadline)} · ${sheet.lockAfterDeadline ? 'danach gesperrt' : 'späte Abgaben erlaubt'}` : ''}</p>
+    <p class="muted small">${sheet.description ? esc(sheet.description) + ' · ' : ''}Erfüllt ab ${sheet.minPercent ?? 80} % = <b>${need} von ${n}</b> Beispielen. ${sheet.deadline ? `Frist: ${fmtDate(sheet.deadline)} · ${sheet.lockAfterDeadline ? 'danach gesperrt' : 'späte Abgaben erlaubt'}` : ''}</p>
     <div class="stats">
       <div class="stat"><b>${students.length}</b><span class="muted small">Schüler haben abgegeben</span></div>
       <div class="stat"><b>${complete}</b><span class="muted small">erfüllt (≥ ${sheet.minPercent ?? 80} %)</span></div>
@@ -287,7 +287,7 @@ function renderSheet(sheet) {
     </div>
     ${filterBarHtml()}
     ${students.length ? `<div class="table-wrap"><table>
-      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheet.tasks.map((t) => `<th class="c">${esc(t)}</th>`).join('')}<th>Erledigt</th><th></th><th>Status</th><th class="c">Abgaben</th><th>Letzte Abgabe</th></tr></thead>
+      <thead><tr><th class="sticky">Name</th><th>Klasse</th>${sheet.tasks.map((t) => `<th class="c">${esc(t)}${partsOf(sheet, t).length ? `<br><span class="muted">${esc(partsOf(sheet, t).join(''))}</span>` : ''}</th>`).join('')}<th>Erledigt</th><th></th><th>Status</th><th class="c">Abgaben</th><th>Letzte Abgabe</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td class="sticky">Wie viele haben's?</td><td></td>${colTotals}<td colspan="5"></td></tr></tfoot>
     </table></div>
@@ -323,7 +323,7 @@ function renderSheet(sheet) {
     };
   });
   $('csvSheet').onclick = () => {
-    const header = ['Name', 'Klasse', ...sheet.tasks.map((t) => 'Aufgabe ' + t), 'Erledigt', 'Von', 'Nötig', 'Erfüllt', 'Abgaben', 'Verspätet', 'Letzte Abgabe'];
+    const header = ['Name', 'Klasse', ...sheet.tasks.map((t) => taskText(sheet, t)), 'Erledigt', 'Von', 'Nötig', 'Erfüllt', 'Abgaben', 'Verspätet', 'Letzte Abgabe'];
     const lines = students.map((st) => [
       st.name, st.klasse, ...sheet.tasks.map((t) => (st.done.has(t) ? 'x' : '')),
       st.done.size, n, need, st.done.size >= need ? 'ja' : 'nein', st.subs.length, st.late ? 'ja' : 'nein', fmtDate(st.last),
@@ -356,10 +356,10 @@ function renderSheetList() {
     return;
   }
   $('sheetList').innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Titel</th><th>Aufgaben</th><th>Frist</th><th>Status</th><th class="c">Schüler</th><th></th></tr></thead>
+    <thead><tr><th>Titel</th><th>Beispiele</th><th>Frist</th><th>Status</th><th class="c">Schüler</th><th></th></tr></thead>
     <tbody>${data.sheets.map((s) => `<tr>
       <td>${esc(s.title)}</td>
-      <td class="small" style="white-space: normal; max-width: 260px">${esc(s.tasks.join(', '))}<br><span class="muted">erfüllt ab ${s.minPercent ?? 80} % = ${requiredOf(s)} von ${s.tasks.length}</span></td>
+      <td class="small" style="white-space: normal; max-width: 260px">${esc(s.tasks.map((t) => taskText(s, t)).join(', '))}<br><span class="muted">erfüllt ab ${s.minPercent ?? 80} % = ${requiredOf(s)} von ${s.tasks.length}</span></td>
       <td class="small">${s.deadline ? fmtDate(s.deadline) : '–'}<br><span data-deadline="${esc(s.deadline || '')}">${timerHtml(s.deadline)}</span></td>
       <td>${s.open ? '<span class="badge ok">sichtbar</span>' : '<span class="badge bad">versteckt</span>'}</td>
       <td class="c">${summarize(s).length}</td>
@@ -398,7 +398,7 @@ function toLocalInput(iso) {
 function editSheet(s) {
   $('editId').value = s.id;
   $('fTitle').value = s.title;
-  $('fTasks').value = s.tasks.join(', ');
+  $('fTasks').value = s.tasks.map((t) => taskText(s, t)).join(', ');
   $('fDesc').value = s.description || '';
   $('fDeadline').value = toLocalInput(s.deadline);
   $('fLock').checked = !!s.lockAfterDeadline;
@@ -413,12 +413,12 @@ function editSheet(s) {
 
 // Live-Vorschau: welche Aufgaben aus der Eingabe erkannt werden
 function renderPreview() {
-  const tasks = AbgabeCore.parseTasks($('fTasks').value);
-  if (!tasks.length) { $('tasksPreview').innerHTML = ''; return; }
+  const examples = AbgabeCore.parseExamples($('fTasks').value);
+  if (!examples.length) { $('tasksPreview').innerHTML = ''; return; }
   const p = Number($('fMin').value) || 80;
-  const need = AbgabeCore.requiredCount({ tasks, minPercent: p });
-  $('tasksPreview').innerHTML = `Erkannt: <b>${tasks.length} Aufgaben</b> – bei ${p} % sind <b>${need}</b> nötig<br>`
-    + tasks.map((t) => `<span class="chip">${esc(t)}</span>`).join('');
+  const need = AbgabeCore.requiredCount({ tasks: examples, minPercent: p });
+  $('tasksPreview').innerHTML = `Erkannt: <b>${examples.length} Beispiele</b> – bei ${p} % sind <b>${need}</b> nötig<br>`
+    + examples.map((e) => `<span class="chip">${esc(e.id)}${e.parts.length ? ` <small>${esc(e.parts.join(''))}</small>` : ''}</span>`).join('');
 }
 $('fTasks').oninput = renderPreview;
 $('fMin').oninput = renderPreview;
@@ -457,7 +457,7 @@ $('sheetForm').onsubmit = async (e) => {
   const id = $('editId').value;
   try {
     const saved = await adminApi(id ? '/sheets/' + id : '/sheets', { method: id ? 'PUT' : 'POST', body });
-    $('formMsg').innerHTML = `<div class="msg ok">Gespeichert: „${esc(saved.title)}“ mit ${saved.tasks.length} Aufgaben.</div>`;
+    $('formMsg').innerHTML = `<div class="msg ok">Gespeichert: „${esc(saved.title)}“ mit ${saved.tasks.length} Beispielen.</div>`;
     resetForm();
     refresh();
   } catch (err) {

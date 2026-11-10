@@ -8,13 +8,16 @@ const path = require('path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'abgabemathe-'));
 process.env.TEACHER_PASSWORD = 'geheim';
 const { server } = require('./server');
-const { parseTasks, requiredCount } = require('./public/core.js');
+const { parseTasks, parseExamples, requiredCount } = require('./public/core.js');
 
 async function main() {
   assert.deepStrictEqual(parseTasks('1-3, 4a; 4b'), ['1', '2', '3', '4a', '4b']);
   assert.deepStrictEqual(parseTasks('2.16a b 3.18c 7.19'), ['2.16a', '2.16b', '3.18c', '7.19']);
   assert.deepStrictEqual(parseTasks('2.16a-c, 3.1-3'), ['2.16a', '2.16b', '2.16c', '3.1', '3.2', '3.3']);
   assert.deepStrictEqual(parseTasks('7.19 a b und c'), ['7.19a', '7.19b', '7.19c']);
+  assert.deepStrictEqual(parseExamples('2.16abc 3.18c 7.19 2.16d'), [
+    { id: '2.16', parts: ['a', 'b', 'c', 'd'] }, { id: '3.18', parts: ['c'] }, { id: '7.19', parts: [] },
+  ]);
   assert.strictEqual(requiredCount({ tasks: parseTasks('1-10'), minPercent: 80 }), 8);
   assert.strictEqual(requiredCount({ tasks: parseTasks('1-4') }), 4); // 3,2 -> aufrunden
 
@@ -53,6 +56,15 @@ async function main() {
   await call('PUT', `/api/admin/sheets/${id}`, { lockAfterDeadline: false }, 'geheim');
   const late = await call('POST', `/api/sheets/${id}/submit`, { name: 'Max', tasks: ['1'] });
   assert.strictEqual(late.data.late, true);
+
+  // Beispiele: es zählt die Nummer
+  const ex = await call('POST', '/api/admin/sheets', { title: 'HÜ 2', tasks: '2.16a b 3.18c 7.19' }, 'geheim');
+  assert.deepStrictEqual(ex.data.tasks, ['2.16', '3.18', '7.19']);
+  assert.deepStrictEqual(ex.data.taskParts, { '2.16': ['a', 'b'], '3.18': ['c'] });
+  const exSub = await call('POST', `/api/sheets/${ex.data.id}/submit`, { name: 'Lena', tasks: ['2.16', '7.19'] });
+  assert.deepStrictEqual(exSub.data.doneTasks, ['2.16', '7.19']);
+  assert.strictEqual(exSub.data.required, 3);
+  await call('DELETE', `/api/admin/sheets/${ex.data.id}`, null, 'geheim');
 
   // Prozentsatz ändern
   const upd = await call('PUT', `/api/admin/sheets/${id}`, { minPercent: 50 }, 'geheim');

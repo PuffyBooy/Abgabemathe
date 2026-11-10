@@ -211,3 +211,5 @@ details.history summary { cursor: pointer; color: var(--primary); }
 .task-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
 .preview { margin: 6px 0 0; font-size: .85rem; color: var(--muted); }
 .preview .chip { display: inline-block; background: var(--primary-soft); color: var(--primary); border-radius: 6px; padding: 1px 6px; margin: 2px 2px 0 0; font-weight: 600; }
+.task { flex-direction: column; line-height: 1.15; padding: 4px; }
+.task small { font-weight: 500; font-size: .75rem; opacity: .75; letter-spacing: .05em; }

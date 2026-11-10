@@ -49,7 +49,7 @@ function renderSheets() {
       ? '<span class="badge bad">geschlossen</span>'
       : s.deadline ? timerHtml(s.deadline).replace('class="timer', 'class="badge') : '<span class="badge">ohne Frist</span>';
     return `<button type="button" class="sheet-option ${current && current.id === s.id ? 'active' : ''} ${s.acceptsSubmissions ? '' : 'closed'}" data-id="${esc(s.id)}">
-      <span>${esc(s.title)} <span class="muted small">· ${s.tasks.length} Aufgaben, ${requiredOf(s)} nötig</span></span>${status}
+      <span>${esc(s.title)} <span class="muted small">· ${s.tasks.length} Beispiele, ${requiredOf(s)} nötig</span></span>${status}
     </button>`;
   }).join('');
   $('sheets').querySelectorAll('.sheet-option').forEach((btn) => {
@@ -85,7 +85,7 @@ function renderTasks() {
   const checked = new Set([...$('tasks').querySelectorAll('input:checked')].map((i) => i.value));
   $('tasks').innerHTML = current.tasks.map((t) => `
     <label class="task ${prev.has(t) ? 'prev' : ''}" title="${prev.has(t) ? 'schon abgegeben' : ''}">
-      <input type="checkbox" value="${esc(t)}" ${prev.has(t) || checked.has(t) ? 'checked' : ''}>${esc(t)}
+      <input type="checkbox" value="${esc(t)}" ${prev.has(t) || checked.has(t) ? 'checked' : ''}>${esc(t)}${partsOf(current, t).length ? `<small>${esc(partsOf(current, t).join(' '))}</small>` : ''}
     </label>`).join('');
   $('prevInfo').textContent = prev.size
     ? `Gestrichelt = von dir schon abgegeben (${prev.size} von ${current.tasks.length}).`
@@ -109,7 +109,7 @@ function renderGoal() {
       <b>${have} von ${n}</b> angekreuzt (${p} %) ·
       ${reached
         ? `<span style="color:var(--ok)"><b>✓ ${current.minPercent ?? 80} % erreicht</b></span>`
-        : `noch <b>${need - have}</b> bis ${current.minPercent ?? 80} % (${need} Aufgaben nötig)`}
+        : `noch <b>${need - have}</b> bis ${current.minPercent ?? 80} % (${need} Beispiele nötig)`}
     </p>`;
 }
 
@@ -127,7 +127,7 @@ $('submitBtn').onclick = async () => {
     return;
   }
   if (!tasks.length && !comment) {
-    $('message').innerHTML = '<div class="msg err">Bitte kreuze mindestens eine Aufgabe an.</div>';
+    $('message').innerHTML = '<div class="msg err">Bitte kreuze mindestens ein Beispiel an.</div>';
     return;
   }
   $('submitBtn').disabled = true;
@@ -138,9 +138,9 @@ $('submitBtn').onclick = async () => {
     renderTasks();
     const reached = r.doneTasks.length >= r.required;
     $('message').innerHTML = `<div class="msg ${r.late ? 'warn' : 'ok'}">
-      ✅ Abgegeben! ${r.late ? '(verspätet) ' : ''}Insgesamt erledigt: <b>${r.doneTasks.length} von ${current.tasks.length}</b> Aufgaben
+      ✅ Abgegeben! ${r.late ? '(verspätet) ' : ''}Insgesamt erledigt: <b>${r.doneTasks.length} von ${current.tasks.length}</b> Beispiele
       · ${r.submissionCount}. Abgabe zu diesem Blatt.<br>
-      ${reached ? '<b>🎉 Blatt erfüllt!</b>' : `Dir fehlen noch <b>${r.required - r.doneTasks.length}</b> Aufgaben bis ${current.minPercent ?? 80} %. Du kannst später nochmal abgeben.`}</div>`;
+      ${reached ? '<b>🎉 Blatt erfüllt!</b>' : `Dir fehlen noch <b>${r.required - r.doneTasks.length}</b> Beispiele bis ${current.minPercent ?? 80} %. Du kannst später nochmal abgeben.`}</div>`;
   } catch (e) {
     $('message').innerHTML = `<div class="msg err">${esc(e.message)}</div>`;
     loadSheets();
