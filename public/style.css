@@ -201,3 +201,13 @@ details.history summary { cursor: pointer; color: var(--primary); }
 .demo-bar { background: var(--warn-soft); color: var(--warn); font-size: .9rem; padding: 8px 16px; }
 .demo-bar .inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .demo-bar button { color: var(--warn); border-color: currentColor; }
+
+/* 80-%-Ziel */
+.goal { margin-top: 12px; }
+.progress.big { height: 12px; position: relative; overflow: visible; }
+.progress.big > span { border-radius: 99px; }
+.progress > span.warn { background: var(--warn); }
+.progress.big > i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); opacity: .5; }
+.task-grid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); }
+.preview { margin: 6px 0 0; font-size: .85rem; color: var(--muted); }
+.preview .chip { display: inline-block; background: var(--primary-soft); color: var(--primary); border-radius: 6px; padding: 1px 6px; margin: 2px 2px 0 0; font-weight: 600; }

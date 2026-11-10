@@ -49,7 +49,7 @@ function renderSheets() {
       ? '<span class="badge bad">geschlossen</span>'
       : s.deadline ? timerHtml(s.deadline).replace('class="timer', 'class="badge') : '<span class="badge">ohne Frist</span>';
     return `<button type="button" class="sheet-option ${current && current.id === s.id ? 'active' : ''} ${s.acceptsSubmissions ? '' : 'closed'}" data-id="${esc(s.id)}">
-      <span>${esc(s.title)} <span class="muted small">· ${s.tasks.length} Aufgaben</span></span>${status}
+      <span>${esc(s.title)} <span class="muted small">· ${s.tasks.length} Aufgaben, ${requiredOf(s)} nötig</span></span>${status}
     </button>`;
   }).join('');
   $('sheets').querySelectorAll('.sheet-option').forEach((btn) => {
@@ -90,7 +90,27 @@ function renderTasks() {
   $('prevInfo').textContent = prev.size
     ? `Gestrichelt = von dir schon abgegeben (${prev.size} von ${current.tasks.length}).`
     : '';
+  $('tasks').onchange = renderGoal;
+  renderGoal();
   renderHeader();
+}
+
+// Fortschritt Richtung 80 % (bzw. eingestelltem Prozentsatz)
+function renderGoal() {
+  if (!current) return;
+  const n = current.tasks.length;
+  const need = requiredOf(current);
+  const have = $('tasks').querySelectorAll('input:checked').length;
+  const p = Math.round((have / n) * 100);
+  const reached = have >= need;
+  $('goal').innerHTML = `
+    <div class="progress big"><span class="${reached ? '' : 'warn'}" style="width:${Math.min(100, p)}%"></span><i style="left:${current.minPercent ?? 80}%"></i></div>
+    <p class="small" style="margin: 6px 0 0">
+      <b>${have} von ${n}</b> angekreuzt (${p} %) ·
+      ${reached
+        ? `<span style="color:var(--ok)"><b>✓ ${current.minPercent ?? 80} % erreicht</b></span>`
+        : `noch <b>${need - have}</b> bis ${current.minPercent ?? 80} % (${need} Aufgaben nötig)`}
+    </p>`;
 }
 
 $('allBtn').onclick = () => $('tasks').querySelectorAll('input').forEach((i) => { i.checked = true; });
@@ -116,9 +136,11 @@ $('submitBtn').onclick = async () => {
     store.set(doneKey(current.id), r.doneTasks);
     $('comment').value = '';
     renderTasks();
+    const reached = r.doneTasks.length >= r.required;
     $('message').innerHTML = `<div class="msg ${r.late ? 'warn' : 'ok'}">
       ✅ Abgegeben! ${r.late ? '(verspätet) ' : ''}Insgesamt erledigt: <b>${r.doneTasks.length} von ${current.tasks.length}</b> Aufgaben
-      · ${r.submissionCount}. Abgabe zu diesem Blatt.</div>`;
+      · ${r.submissionCount}. Abgabe zu diesem Blatt.<br>
+      ${reached ? '<b>🎉 Blatt erfüllt!</b>' : `Dir fehlen noch <b>${r.required - r.doneTasks.length}</b> Aufgaben bis ${current.minPercent ?? 80} %. Du kannst später nochmal abgeben.`}</div>`;
   } catch (e) {
     $('message').innerHTML = `<div class="msg err">${esc(e.message)}</div>`;
     loadSheets();

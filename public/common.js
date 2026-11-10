@@ -35,6 +35,11 @@ async function api(path, options = {}) {
   return data;
 }
 
+// Wie viele Aufgaben für "erfüllt" nötig sind (Standard 80 %).
+function requiredOf(sheet) {
+  return window.AbgabeCore.requiredCount(sheet);
+}
+
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

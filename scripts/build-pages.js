@@ -17,6 +17,6 @@ for (const page of ['index.html', 'lehrer.html']) {
   const file = path.join(out, page);
   const html = fs.readFileSync(file, 'utf8');
   if (!html.includes(marker)) throw new Error(`${page}: ${marker} nicht gefunden`);
-  fs.writeFileSync(file, html.replace(marker, `<script src="core.js"></script>\n  <script src="demo.js"></script>\n  ${marker}`));
+  fs.writeFileSync(file, html.replace(marker, `<script src="demo.js"></script>\n  ${marker}`));
 }
 console.log('Demo gebaut in _site/');

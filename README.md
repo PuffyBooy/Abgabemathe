@@ -12,12 +12,16 @@ Der Lehrer sieht eine zusammengefasste Übersicht, wer was abgegeben hat.
 - Countdown bis zur Abgabefrist
 
 **Lehrer** (`/lehrer`, mit Passwort)
-- Aufgabenblätter anlegen: Aufgaben als `1-10, 11a, 11b` eingeben
-- **Zeitlimit**: Frist als Datum/Uhrzeit oder per Knopf „+10/+20/+45/+90 Min“ ab jetzt
+- Aufgabenblätter anlegen, Aufgaben so eingeben wie im Buch – mit Live-Vorschau:
+  - `2.16a b 3.18c 7.19` → 2.16a, 2.16b, 3.18c, 7.19
+  - `2.16a-d` → 2.16a bis 2.16d · `2.16-2.20` → 2.16 bis 2.20
+- **80 %-Regel**: Ein Blatt gilt als erfüllt, wenn mindestens 80 % der Aufgaben erledigt sind
+  (pro Blatt einstellbar). Schüler sehen live, wie viele noch fehlen.
+- **Zeitlimit**: Frist als Datum/Uhrzeit (Knöpfe „Morgen 8:00“, „In 1 Woche“ …)
 - Nach Ablauf entweder sperren oder späte Abgaben als „verspätet“ markieren
 - Blätter verstecken/freigeben, bearbeiten, löschen
-- **Gesamtübersicht**: alle Schüler × alle Blätter (z. B. `6/10`) mit Fortschritt
-- **Blatt-Ansicht**: Tabelle Schüler × Aufgaben (✓), wie viele jede Aufgabe haben,
+- **Gesamtübersicht**: alle Schüler × alle Blätter (z. B. `8/10 ✓`) und wie viele Blätter jeder erfüllt hat
+- **Blatt-Ansicht**: Tabelle Schüler × Aufgaben (✓), Status „erfüllt“ / „fehlt 2“, wie viele jede Aufgabe haben,
   Durchschnitt, Anzahl Abgaben, verspätete Abgaben, Kommentare, einzelne Abgaben löschen
 - Filter nach Klasse und Name, CSV-Export (öffnet in Excel), aktualisiert sich automatisch
 

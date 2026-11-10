@@ -44,11 +44,17 @@
               <label for="fTitle">Titel</label>
               <input id="fTitle" type="text" maxlength="120" placeholder="z. B. Hausübung 5 – Bruchrechnen" required>
             </div>
+            <div class="field" style="flex: 0 1 170px">
+              <label for="fMin">Erfüllt ab (%)</label>
+              <input id="fMin" type="number" min="1" max="100" step="1" value="80" required>
+            </div>
           </div>
           <div class="field">
             <label for="fTasks">Aufgaben</label>
-            <input id="fTasks" type="text" placeholder="z. B. 1-10, 11a, 11b, 12" required>
-            <p class="muted small" style="margin: 4px 0 0">Mit Komma trennen. Bereiche wie <code>1-10</code> werden automatisch aufgefüllt.</p>
+            <input id="fTasks" type="text" placeholder="z. B. 2.16a b 3.18c 7.19" required autocomplete="off">
+            <p class="muted small" style="margin: 4px 0 0">So wie im Buch: <code>2.16a b</code> = 2.16a und 2.16b ·
+              <code>2.16a-d</code> = a bis d · <code>2.16-2.20</code> = 2.16 bis 2.20</p>
+            <div id="tasksPreview" class="preview"></div>
           </div>
           <div class="field">
             <label for="fDesc">Beschreibung (optional)</label>
@@ -58,15 +64,11 @@
             <label for="fDeadline">Zeitlimit / Abgabefrist (optional)</label>
             <input id="fDeadline" type="datetime-local" style="max-width: 280px">
             <div class="quick" id="quick">
-              <button type="button" class="secondary small" data-min="10">+10 Min</button>
-              <button type="button" class="secondary small" data-min="20">+20 Min</button>
-              <button type="button" class="secondary small" data-min="45">+45 Min</button>
-              <button type="button" class="secondary small" data-min="90">+90 Min</button>
-              <button type="button" class="secondary small" data-preset="tomorrow">Morgen 8:00</button>
-              <button type="button" class="secondary small" data-preset="week">In 1 Woche</button>
-              <button type="button" class="ghost small" data-preset="none">Keine Frist</button>
+              <button type="button" class="secondary small" data-days="1">Morgen 8:00</button>
+              <button type="button" class="secondary small" data-days="2">Übermorgen 8:00</button>
+              <button type="button" class="secondary small" data-days="7">In 1 Woche 8:00</button>
+              <button type="button" class="ghost small" data-days="0">Keine Frist</button>
             </div>
-            <p class="muted small" style="margin: 4px 0 0">„+ Min“ zählt ab jetzt – gut für Aufgaben mit Zeitlimit in der Stunde.</p>
           </div>
           <div class="field">
             <label class="checkline"><input type="checkbox" id="fLock" checked> Nach Ablauf keine Abgaben mehr annehmen</label>
@@ -89,6 +91,7 @@
     </div>
   </main>
 
+  <script src="core.js"></script>
   <script src="common.js"></script>
   <script src="lehrer.js"></script>
 </body>

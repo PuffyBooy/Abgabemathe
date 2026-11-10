@@ -7,10 +7,16 @@ const path = require('path');
 
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'abgabemathe-'));
 process.env.TEACHER_PASSWORD = 'geheim';
-const { server, parseTasks } = require('./server');
+const { server } = require('./server');
+const { parseTasks, requiredCount } = require('./public/core.js');
 
 async function main() {
   assert.deepStrictEqual(parseTasks('1-3, 4a; 4b'), ['1', '2', '3', '4a', '4b']);
+  assert.deepStrictEqual(parseTasks('2.16a b 3.18c 7.19'), ['2.16a', '2.16b', '3.18c', '7.19']);
+  assert.deepStrictEqual(parseTasks('2.16a-c, 3.1-3'), ['2.16a', '2.16b', '2.16c', '3.1', '3.2', '3.3']);
+  assert.deepStrictEqual(parseTasks('7.19 a b und c'), ['7.19a', '7.19b', '7.19c']);
+  assert.strictEqual(requiredCount({ tasks: parseTasks('1-10'), minPercent: 80 }), 8);
+  assert.strictEqual(requiredCount({ tasks: parseTasks('1-4') }), 4); // 3,2 -> aufrunden
 
   await new Promise((r) => server.listen(0, r));
   const base = `http://localhost:${server.address().port}`;
@@ -32,6 +38,7 @@ async function main() {
   const s1 = await call('POST', `/api/sheets/${id}/submit`, { name: 'Lena Huber', klasse: '3B', tasks: ['1', '2', 'x'] });
   assert.strictEqual(s1.status, 201);
   assert.deepStrictEqual(s1.data.doneTasks, ['1', '2']);
+  assert.strictEqual(s1.data.required, 4);
 
   // Zweite Abgabe – wird dazugezählt, Name mit anderer Schreibweise
   const s2 = await call('POST', `/api/sheets/${id}/submit`, { name: ' lena  huber ', klasse: '3b', tasks: ['4'] });
@@ -46,6 +53,10 @@ async function main() {
   await call('PUT', `/api/admin/sheets/${id}`, { lockAfterDeadline: false }, 'geheim');
   const late = await call('POST', `/api/sheets/${id}/submit`, { name: 'Max', tasks: ['1'] });
   assert.strictEqual(late.data.late, true);
+
+  // Prozentsatz ändern
+  const upd = await call('PUT', `/api/admin/sheets/${id}`, { minPercent: 50 }, 'geheim');
+  assert.strictEqual(upd.data.minPercent, 50);
 
   // Verstecktes Blatt ist nicht sichtbar
   await call('PUT', `/api/admin/sheets/${id}`, { open: false }, 'geheim');

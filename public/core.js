@@ -28,25 +28,83 @@
     return (cleanText(klasse, 30) + '|' + cleanText(name, 80)).toLocaleLowerCase('de');
   }
 
-  // "1-5, 6a, 6b" -> ["1","2","3","4","5","6a","6b"]
+  // Wandelt die Aufgaben-Eingabe des Lehrers in eine Liste um. Beispiele:
+  //   "2.16a b 3.18c 7.19"   -> 2.16a, 2.16b, 3.18c, 7.19
+  //   "2.16a-d"              -> 2.16a, 2.16b, 2.16c, 2.16d
+  //   "2.16-2.18" / "2.16-18" -> 2.16, 2.17, 2.18
+  //   "1-5, 6a, 6b"          -> 1, 2, 3, 4, 5, 6a, 6b
+  // Trennzeichen: Leerzeichen, Komma, Strichpunkt, Zeilenumbruch, "und".
   function parseTasks(input) {
-    const parts = Array.isArray(input) ? input : String(input ?? '').split(/[,;\n]+/);
+    if (Array.isArray(input)) return [...new Set(input.map((t) => cleanText(t, 40)).filter(Boolean))].slice(0, 300);
+
+    const tokens = String(input ?? '')
+      .replace(/\s+bis\s+/gi, '-')
+      .replace(/\s*[-–]\s*/g, '-')
+      .split(/[\s,;+&]+/)
+      .filter((t) => t && !/^(und|u\.?)$/i.test(t));
+
     const out = [];
-    for (const raw of parts) {
-      const p = cleanText(raw, 40);
-      if (!p) continue;
-      const range = p.match(/^(\d+)\s*-\s*(\d+)$/);
-      if (range) {
-        const a = Number(range[1]);
-        const b = Number(range[2]);
-        if (b >= a && b - a < 200) {
-          for (let i = a; i <= b; i++) out.push(String(i));
-          continue;
+    let base = null; // zuletzt gesehene Nummer, z. B. "2.16" – für nachfolgende Buchstaben
+    let bareIndex = -1; // Position einer Nummer ohne Buchstaben, die durch "a b …" ersetzt wird
+
+    const letterRange = (a, b) => {
+      const r = [];
+      for (let c = a.toLowerCase().charCodeAt(0); c <= b.toLowerCase().charCodeAt(0); c++) r.push(String.fromCharCode(c));
+      return r;
+    };
+    const addLetters = (letters) => {
+      if (bareIndex !== -1 && out[bareIndex] === base) out.splice(bareIndex, 1);
+      bareIndex = -1;
+      letters.forEach((l) => out.push(base + l.toLowerCase()));
+    };
+
+    for (const t of tokens.map((x) => x.slice(0, 40))) {
+      let m;
+      if ((m = t.match(/^(\d+(?:\.\d+)*)([a-z])-([a-z])$/i))) { // 2.16a-d
+        base = m[1];
+        bareIndex = -1;
+        addLetters(letterRange(m[2], m[3]));
+      } else if (base && (m = t.match(/^([a-z])-([a-z])$/i))) { // a-d (zur vorigen Nummer)
+        addLetters(letterRange(m[1], m[2]));
+      } else if ((m = t.match(/^(\d+(?:\.\d+)*)-(\d+(?:\.\d+)*)$/))) { // 2.16-2.20, 2.16-20, 1-10
+        const a = m[1].split('.');
+        const b = m[2].split('.');
+        const prefix = a.slice(0, -1);
+        const from = Number(a[a.length - 1]);
+        let to = null;
+        if (b.length === 1) to = Number(b[0]);
+        else if (b.length === a.length && b.slice(0, -1).join('.') === prefix.join('.')) to = Number(b[b.length - 1]);
+        if (to !== null && to >= from && to - from < 100) {
+          for (let i = from; i <= to; i++) out.push([...prefix, i].join('.'));
+          base = out[out.length - 1];
+          bareIndex = out.length - 1;
+        } else {
+          out.push(t);
+          base = null;
         }
+      } else if ((m = t.match(/^(\d+(?:\.\d+)*)([a-z]{0,4})$/i))) { // 2.16a, 2.16ab, 7.19
+        base = m[1];
+        bareIndex = -1;
+        if (m[2]) addLetters([...m[2]]);
+        else {
+          out.push(base);
+          bareIndex = out.length - 1;
+        }
+      } else if (base && /^[a-z]{1,4}$/i.test(t)) { // b, bc (zur vorigen Nummer)
+        addLetters([...t]);
+      } else {
+        out.push(t);
+        base = null;
+        bareIndex = -1;
       }
-      out.push(p);
     }
     return [...new Set(out)].slice(0, 300);
+  }
+
+  // Wie viele Aufgaben für "erfüllt" nötig sind (Standard: 80 %).
+  function requiredCount(sheet) {
+    const p = sheet.minPercent ?? 80;
+    return Math.ceil((sheet.tasks.length * p) / 100 - 1e-9);
   }
 
   function parseDeadline(value) {
@@ -74,6 +132,8 @@
       deadline: sheet.deadline,
       lockAfterDeadline: sheet.lockAfterDeadline,
       open: sheet.open,
+      minPercent: sheet.minPercent ?? 80,
+      required: requiredCount(sheet),
       acceptsSubmissions: canSubmit(sheet),
     };
   }
@@ -91,6 +151,9 @@
       deadline: body.deadline !== undefined ? parseDeadline(body.deadline) : existing.deadline ?? null,
       lockAfterDeadline: body.lockAfterDeadline !== undefined ? !!body.lockAfterDeadline : !!existing.lockAfterDeadline,
       open: body.open !== undefined ? !!body.open : existing.open ?? true,
+      minPercent: body.minPercent !== undefined
+        ? Math.min(100, Math.max(1, Math.round(Number(body.minPercent)) || 80))
+        : existing.minPercent ?? 80,
     };
   }
 
@@ -146,6 +209,7 @@
         ok: true,
         late: submission.late,
         submissionCount: mine.length,
+        required: requiredCount(sheet),
         doneTasks: sheet.tasks.filter((t) => done.has(t)),
       }, true);
     }
@@ -191,5 +255,5 @@
     throw new HttpError(404, 'Nicht gefunden.');
   }
 
-  return { HttpError, handle, parseTasks, studentKey, emptyDb, newId };
+  return { HttpError, handle, parseTasks, requiredCount, studentKey, emptyDb, newId };
 });

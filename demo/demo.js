@@ -14,25 +14,27 @@
     const at = (offset) => new Date(now + offset).toISOString();
     const sheets = [
       {
-        id: 'demo-hue5', createdAt: at(-2 * day), title: 'Hausübung 5 – Bruchrechnen', description: 'Buch S. 42–45',
-        tasks: core.parseTasks('1-8, 9a, 9b'), deadline: at(3 * day), lockAfterDeadline: false, open: true,
+        id: 'demo-hue5', createdAt: at(-2 * day), title: 'Hausübung 5 – Bruchrechnen', description: 'Buch Kapitel 2 und 3',
+        tasks: core.parseTasks('2.16a b 2.17 2.18a-c 3.18c 3.19 3.20a b'), deadline: at(3 * day), lockAfterDeadline: false, open: true, minPercent: 80,
       },
       {
-        id: 'demo-stunde', createdAt: at(-5 * min), title: 'Stundenübung (Zeitlimit 20 Min)', description: 'Arbeitsblatt Gleichungen',
-        tasks: core.parseTasks('1-6'), deadline: at(20 * min), lockAfterDeadline: true, open: true,
+        id: 'demo-hue6', createdAt: at(-1 * day), title: 'Hausübung 6 – Gleichungen', description: '',
+        tasks: core.parseTasks('7.19 7.20a b 7.21 7.22a-d'), deadline: at(7 * day), lockAfterDeadline: true, open: true, minPercent: 80,
       },
       {
         id: 'demo-hue4', createdAt: at(-9 * day), title: 'Hausübung 4 – Prozentrechnung', description: '',
-        tasks: core.parseTasks('1-6'), deadline: at(-2 * day), lockAfterDeadline: false, open: true,
+        tasks: core.parseTasks('1.12 1.13a b 1.14 1.15a-c'), deadline: at(-2 * day), lockAfterDeadline: false, open: true, minPercent: 80,
       },
     ];
     const people = [['Lena Huber', '3B'], ['Max Gruber', '3B'], ['Sara Novak', '3A'], ['Jonas Berger', '3A'], ['Emma Wagner', '3B']];
     const subs = [
-      ['demo-hue4', 0, '1-6', -4 * day], ['demo-hue4', 1, '1-4', -3 * day], ['demo-hue4', 2, '1-6', -3 * day],
-      ['demo-hue4', 3, '1-3', -2.5 * day], ['demo-hue4', 3, '4,5', -1 * day], ['demo-hue4', 4, '1-6', -2.2 * day],
-      ['demo-hue5', 0, '1-5, 9a', -1 * day], ['demo-hue5', 0, '6,7', -3 * 60 * min], ['demo-hue5', 2, '1-8, 9a, 9b', -20 * 60 * min],
-      ['demo-hue5', 1, '1,2', -2 * 60 * min, 'Bei 3 bin ich nicht weitergekommen.'],
-      ['demo-stunde', 2, '1-3', -1 * min],
+      ['demo-hue4', 0, '1.12 1.13a b 1.14 1.15a-c', -4 * day], ['demo-hue4', 1, '1.12 1.13a b 1.14', -3 * day],
+      ['demo-hue4', 2, '1.12 1.13a b 1.14 1.15a b', -3 * day], ['demo-hue4', 3, '1.12 1.13a', -2.5 * day],
+      ['demo-hue4', 3, '1.13b 1.14 1.15a b', -1 * day], ['demo-hue4', 4, '1.12 1.13a b 1.14 1.15a-c', -2.2 * day],
+      ['demo-hue5', 0, '2.16a b 2.17 2.18a b 3.18c', -1 * day], ['demo-hue5', 0, '3.19 3.20a', -3 * 60 * min],
+      ['demo-hue5', 2, '2.16a b 2.17 2.18a-c 3.18c 3.19 3.20a b', -20 * 60 * min],
+      ['demo-hue5', 1, '2.16a b 2.17', -2 * 60 * min, 'Bei 2.18 bin ich nicht weitergekommen.'],
+      ['demo-hue6', 2, '7.19 7.20a b', -30 * min],
     ];
     const submissions = subs.map(([sheetId, p, tasks, offset, comment]) => {
       const sheet = sheets.find((s) => s.id === sheetId);
