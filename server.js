@@ -1,11 +1,13 @@
 'use strict';
 // Abgabemathe – kleiner Server ohne externe Abhängigkeiten.
 // Start: node server.js   (Port über PORT, Lehrer-Passwort über TEACHER_PASSWORD)
+// Die eigentliche API-Logik steckt in public/core.js (wird auch von der GitHub-Pages-Demo genutzt).
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const core = require('./public/core.js');
 
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -27,11 +29,11 @@ function loadDb() {
     return db;
   } catch (e) {
     if (e.code !== 'ENOENT') console.error('Konnte Datenbank nicht lesen:', e);
-    return { sheets: [], submissions: [] };
+    return core.emptyDb();
   }
 }
 
-let db = loadDb();
+const db = loadDb();
 
 function saveDb() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -40,100 +42,15 @@ function saveDb() {
   fs.renameSync(tmp, DB_FILE);
 }
 
-const newId = () => crypto.randomBytes(8).toString('hex');
+// ---------- HTTP ----------
 
-// ---------- Hilfsfunktionen ----------
-
-function cleanText(value, max) {
-  return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
-}
-
-// Schlüssel, um denselben Schüler bei mehreren Abgaben zu erkennen.
-function studentKey(name, klasse) {
-  return (cleanText(klasse, 30) + '|' + cleanText(name, 80)).toLocaleLowerCase('de');
-}
-
-// "1-5, 6a, 6b" -> ["1","2","3","4","5","6a","6b"]
-function parseTasks(input) {
-  const parts = Array.isArray(input) ? input : String(input ?? '').split(/[,;\n]+/);
-  const out = [];
-  for (const raw of parts) {
-    const p = cleanText(raw, 40);
-    if (!p) continue;
-    const range = p.match(/^(\d+)\s*-\s*(\d+)$/);
-    if (range) {
-      const a = Number(range[1]);
-      const b = Number(range[2]);
-      if (b >= a && b - a < 200) {
-        for (let i = a; i <= b; i++) out.push(String(i));
-        continue;
-      }
-    }
-    out.push(p);
-  }
-  return [...new Set(out)].slice(0, 300);
-}
-
-function parseDeadline(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const t = new Date(value).getTime();
-  return Number.isFinite(t) ? new Date(t).toISOString() : null;
-}
-
-function isPastDeadline(sheet, now = Date.now()) {
-  return !!sheet.deadline && now > new Date(sheet.deadline).getTime();
-}
-
-function canSubmit(sheet) {
-  if (!sheet.open) return false;
-  if (sheet.lockAfterDeadline && isPastDeadline(sheet)) return false;
-  return true;
-}
-
-function publicSheet(sheet) {
-  return {
-    id: sheet.id,
-    title: sheet.title,
-    description: sheet.description,
-    tasks: sheet.tasks,
-    deadline: sheet.deadline,
-    lockAfterDeadline: sheet.lockAfterDeadline,
-    open: sheet.open,
-    acceptsSubmissions: canSubmit(sheet),
-  };
-}
-
-function sheetFromBody(body, existing = {}) {
-  const title = cleanText(body.title ?? existing.title, 120);
-  const tasks = body.tasks !== undefined ? parseTasks(body.tasks) : existing.tasks;
-  if (!title) throw new HttpError(400, 'Bitte einen Titel angeben.');
-  if (!tasks || tasks.length === 0) throw new HttpError(400, 'Bitte mindestens eine Aufgabe angeben.');
-  return {
-    ...existing,
-    title,
-    description: cleanText(body.description ?? existing.description ?? '', 500),
-    tasks,
-    deadline: body.deadline !== undefined ? parseDeadline(body.deadline) : existing.deadline ?? null,
-    lockAfterDeadline: body.lockAfterDeadline !== undefined ? !!body.lockAfterDeadline : !!existing.lockAfterDeadline,
-    open: body.open !== undefined ? !!body.open : existing.open ?? true,
-  };
-}
-
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function send(res, status, data, headers = {}) {
-  const body = typeof data === 'string' ? data : JSON.stringify(data);
+function send(res, status, data) {
+  const isText = typeof data === 'string';
   res.writeHead(status, {
-    'Content-Type': typeof data === 'string' ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8',
+    'Content-Type': isText ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
-    ...headers,
   });
-  res.end(body);
+  res.end(isText ? data : JSON.stringify(data));
 }
 
 function readBody(req) {
@@ -143,7 +60,7 @@ function readBody(req) {
     req.on('data', (c) => {
       size += c.length;
       if (size > 100_000) {
-        reject(new HttpError(413, 'Anfrage zu groß.'));
+        reject(new core.HttpError(413, 'Anfrage zu groß.'));
         req.destroy();
       } else chunks.push(c);
     });
@@ -152,7 +69,7 @@ function readBody(req) {
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
       } catch {
-        reject(new HttpError(400, 'Ungültiges JSON.'));
+        reject(new core.HttpError(400, 'Ungültiges JSON.'));
       }
     });
     req.on('error', reject);
@@ -165,101 +82,11 @@ function isTeacher(req) {
   return given.length === expected.length && crypto.timingSafeEqual(given, expected);
 }
 
-// ---------- API ----------
-
 async function handleApi(req, res, url) {
-  const parts = url.pathname.split('/').filter(Boolean); // ["api", ...]
-  const method = req.method;
-
-  // Öffentlich: Liste der Aufgabenblätter
-  if (method === 'GET' && parts[1] === 'sheets' && parts.length === 2) {
-    const sheets = db.sheets.filter((s) => s.open).map(publicSheet);
-    return send(res, 200, { serverTime: new Date().toISOString(), sheets });
-  }
-
-  // Öffentlich: Abgabe
-  if (method === 'POST' && parts[1] === 'sheets' && parts[3] === 'submit' && parts.length === 4) {
-    const sheet = db.sheets.find((s) => s.id === parts[2]);
-    if (!sheet || !sheet.open) throw new HttpError(404, 'Dieses Aufgabenblatt gibt es nicht (mehr).');
-    if (!canSubmit(sheet)) throw new HttpError(403, 'Die Abgabefrist ist abgelaufen.');
-    const body = await readBody(req);
-    const name = cleanText(body.name, 80);
-    const klasse = cleanText(body.klasse, 30);
-    if (name.length < 2) throw new HttpError(400, 'Bitte deinen Namen eingeben.');
-    const valid = new Set(sheet.tasks);
-    const tasks = [...new Set((Array.isArray(body.tasks) ? body.tasks : []).map(String))].filter((t) => valid.has(t));
-    const comment = cleanText(body.comment, 500);
-    if (tasks.length === 0 && !comment) throw new HttpError(400, 'Bitte mindestens eine Aufgabe ankreuzen.');
-
-    const submission = {
-      id: newId(),
-      sheetId: sheet.id,
-      name,
-      klasse,
-      key: studentKey(name, klasse),
-      tasks,
-      comment,
-      createdAt: new Date().toISOString(),
-      late: isPastDeadline(sheet),
-    };
-    db.submissions.push(submission);
-    saveDb();
-
-    const mine = db.submissions.filter((s) => s.sheetId === sheet.id && s.key === submission.key);
-    const done = new Set(mine.flatMap((s) => s.tasks));
-    return send(res, 201, {
-      ok: true,
-      late: submission.late,
-      submissionCount: mine.length,
-      doneTasks: sheet.tasks.filter((t) => done.has(t)),
-    });
-  }
-
-  // ---- Lehrerbereich ----
-  if (parts[1] === 'admin') {
-    if (!isTeacher(req)) throw new HttpError(401, 'Falsches Passwort.');
-
-    if (method === 'POST' && parts[2] === 'login') return send(res, 200, { ok: true });
-
-    if (method === 'GET' && parts[2] === 'data') {
-      return send(res, 200, { serverTime: new Date().toISOString(), sheets: db.sheets, submissions: db.submissions });
-    }
-
-    if (method === 'POST' && parts[2] === 'sheets' && parts.length === 3) {
-      const body = await readBody(req);
-      const sheet = { id: newId(), createdAt: new Date().toISOString(), ...sheetFromBody(body) };
-      db.sheets.push(sheet);
-      saveDb();
-      return send(res, 201, sheet);
-    }
-
-    if (parts[2] === 'sheets' && parts.length === 4) {
-      const idx = db.sheets.findIndex((s) => s.id === parts[3]);
-      if (idx === -1) throw new HttpError(404, 'Aufgabenblatt nicht gefunden.');
-      if (method === 'PUT') {
-        const body = await readBody(req);
-        db.sheets[idx] = sheetFromBody(body, db.sheets[idx]);
-        saveDb();
-        return send(res, 200, db.sheets[idx]);
-      }
-      if (method === 'DELETE') {
-        const [removed] = db.sheets.splice(idx, 1);
-        db.submissions = db.submissions.filter((s) => s.sheetId !== removed.id);
-        saveDb();
-        return send(res, 200, { ok: true });
-      }
-    }
-
-    if (method === 'DELETE' && parts[2] === 'submissions' && parts.length === 4) {
-      const before = db.submissions.length;
-      db.submissions = db.submissions.filter((s) => s.id !== parts[3]);
-      if (db.submissions.length === before) throw new HttpError(404, 'Abgabe nicht gefunden.');
-      saveDb();
-      return send(res, 200, { ok: true });
-    }
-  }
-
-  throw new HttpError(404, 'Nicht gefunden.');
+  const body = req.method === 'POST' || req.method === 'PUT' ? await readBody(req) : {};
+  const result = core.handle(db, { method: req.method, path: url.pathname, body, isTeacher: isTeacher(req) });
+  if (result.changed) saveDb();
+  send(res, result.status, result.data);
 }
 
 // ---------- Statische Dateien ----------
@@ -293,7 +120,7 @@ const server = http.createServer(async (req, res) => {
     else if (req.method === 'GET' || req.method === 'HEAD') serveStatic(req, res, url);
     else send(res, 405, 'Methode nicht erlaubt');
   } catch (e) {
-    if (e instanceof HttpError) send(res, e.status, { error: e.message });
+    if (e instanceof core.HttpError) send(res, e.status, { error: e.message });
     else {
       console.error(e);
       send(res, 500, { error: 'Serverfehler.' });
@@ -308,4 +135,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { server, parseTasks };
+module.exports = { server, parseTasks: core.parseTasks };

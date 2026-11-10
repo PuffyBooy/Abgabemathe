@@ -20,7 +20,7 @@ function doneKey(sheetId) {
 
 async function loadSheets() {
   try {
-    const data = await api('/api/sheets');
+    const data = await api('api/sheets');
     syncServerTime(data.serverTime);
     sheets = data.sheets;
     if (current) {
@@ -112,7 +112,7 @@ $('submitBtn').onclick = async () => {
   }
   $('submitBtn').disabled = true;
   try {
-    const r = await api(`/api/sheets/${encodeURIComponent(current.id)}/submit`, { method: 'POST', body: { name, klasse, tasks, comment } });
+    const r = await api(`api/sheets/${encodeURIComponent(current.id)}/submit`, { method: 'POST', body: { name, klasse, tasks, comment } });
     store.set(doneKey(current.id), r.doneTasks);
     $('comment').value = '';
     renderTasks();

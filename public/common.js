@@ -10,6 +10,16 @@ function now() {
 }
 
 async function api(path, options = {}) {
+  // In der GitHub-Pages-Demo gibt es keinen Server: Anfragen gehen an die Demo im Browser.
+  if (window.AbgabeDemo) {
+    const r = window.AbgabeDemo.request(options.method || 'GET', path, options.body, options.headers || {});
+    if (r.status >= 400) {
+      const err = new Error(r.data.error);
+      err.status = r.status;
+      throw err;
+    }
+    return r.data;
+  }
   const res = await fetch(path, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },

@@ -6,7 +6,7 @@ let tab = sessionStorage.getItem('teacherTab') || 'overview';
 let filterKlasse = '';
 let search = '';
 
-const adminApi = (path, opts = {}) => api('/api/admin' + path, { ...opts, headers: { 'X-Teacher-Password': password } });
+const adminApi = (path, opts = {}) => api('api/admin' + path, { ...opts, headers: { 'X-Teacher-Password': password } });
 
 // ---------- Anmeldung ----------
 

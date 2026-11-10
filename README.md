@@ -40,7 +40,22 @@ Ohne `TEACHER_PASSWORD` ist das Passwort `lehrer123` – bitte ändern!
 
 Alle Daten liegen in `data/db.json`. Zum Sichern einfach die Datei kopieren.
 
-## Online stellen
+## Demo auf GitHub Pages
+
+Es gibt eine Demo-Version, die ganz ohne Server läuft: Alle Daten bleiben im Browser
+(`localStorage`), es sind schon Beispieldaten drin, und das Lehrer-Passwort ist `demo`.
+Gut zum Ausprobieren und Herzeigen – **für echte Abgaben aber nicht geeignet**, weil jeder
+Browser seine eigenen Daten hat und der Lehrer die Abgaben der Schüler nicht sieht.
+
+Einrichten (einmalig): im Repo unter **Settings → Pages → Build and deployment → Source**
+„**GitHub Actions**“ auswählen. Danach baut der Workflow `.github/workflows/pages.yml` die Demo
+bei jedem Push automatisch (oder manuell unter *Actions → Demo auf GitHub Pages → Run workflow*).
+Die Seite ist dann unter `https://<benutzername>.github.io/Abgabemathe/` erreichbar.
+
+Lokal bauen: `npm run build:pages` erzeugt den Ordner `_site/`.
+Die Demo nutzt dieselbe Logik wie der Server (`public/core.js`), nur die Speicherung ist anders (`demo/demo.js`).
+
+## Online stellen (echter Betrieb)
 
 Die Seite braucht einen kleinen Server (GitHub Pages reicht nicht, weil Abgaben gespeichert werden).
 Geht z. B. mit Render, Railway, Fly.io oder einem eigenen Rechner/Raspberry Pi im Schulnetz:
