@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mathe-Abgabe</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="inner">
+      <h1>📐 Mathe-Abgabe</h1>
+      <a href="/lehrer">Lehrerbereich</a>
+    </div>
+  </header>
+
+  <main class="narrow">
+    <section class="card">
+      <h2>1. Wer bist du?</h2>
+      <div class="row">
+        <div class="field">
+          <label for="name">Vor- und Nachname</label>
+          <input id="name" type="text" autocomplete="name" maxlength="80" placeholder="z. B. Lena Huber">
+        </div>
+        <div class="field" style="flex: 0 1 140px">
+          <label for="klasse">Klasse</label>
+          <input id="klasse" type="text" maxlength="30" placeholder="z. B. 3B">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. Aufgabenblatt wählen</h2>
+      <div id="sheets" class="sheet-list"><p class="muted">Lade …</p></div>
+    </section>
+
+    <section class="card hidden" id="taskCard">
+      <div class="actions" style="justify-content: space-between; margin-bottom: 10px">
+        <h2 id="sheetTitle" style="margin: 0"></h2>
+        <span id="timer"></span>
+      </div>
+      <p id="sheetDesc" class="muted small"></p>
+      <p class="muted small" id="deadlineInfo"></p>
+
+      <h3>3. Welche Aufgaben hast du gemacht?</h3>
+      <p class="muted small">Tippe alle Aufgaben an, die du erledigt hast. Du kannst später nochmal abgeben – neue Aufgaben werden dazugezählt.</p>
+      <div id="tasks" class="task-grid"></div>
+      <div class="actions" style="margin-top: 10px">
+        <button type="button" class="ghost small" id="allBtn">Alle ankreuzen</button>
+        <button type="button" class="ghost small" id="noneBtn">Keine</button>
+      </div>
+
+      <div class="field" style="margin-top: 14px">
+        <label for="comment">Kommentar (optional)</label>
+        <textarea id="comment" maxlength="500" placeholder="z. B. Bei 4b hatte ich Probleme …"></textarea>
+      </div>
+
+      <div id="message"></div>
+      <button type="button" id="submitBtn">Abgeben</button>
+      <p class="muted small" id="prevInfo"></p>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

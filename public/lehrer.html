@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lehrerbereich – Mathe-Abgabe</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="inner">
+      <h1>📊 Lehrerbereich</h1>
+      <div class="actions">
+        <a href="/">Zur Schülerseite</a>
+        <button type="button" class="ghost small hidden" id="logoutBtn">Abmelden</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card hidden" id="loginCard" style="max-width: 420px; margin: 40px auto">
+      <h2>Anmelden</h2>
+      <form id="loginForm">
+        <div class="field">
+          <label for="pw">Lehrer-Passwort</label>
+          <input id="pw" type="password" autocomplete="current-password">
+        </div>
+        <div id="loginMsg"></div>
+        <button type="submit">Anmelden</button>
+      </form>
+    </section>
+
+    <div id="app" class="hidden">
+      <nav class="tabs" id="tabs"></nav>
+      <div id="view"></div>
+
+      <section class="card hidden" id="manageView">
+        <h2 id="formTitle">Neues Aufgabenblatt</h2>
+        <form id="sheetForm">
+          <input type="hidden" id="editId">
+          <div class="row">
+            <div class="field">
+              <label for="fTitle">Titel</label>
+              <input id="fTitle" type="text" maxlength="120" placeholder="z. B. Hausübung 5 – Bruchrechnen" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="fTasks">Aufgaben</label>
+            <input id="fTasks" type="text" placeholder="z. B. 1-10, 11a, 11b, 12" required>
+            <p class="muted small" style="margin: 4px 0 0">Mit Komma trennen. Bereiche wie <code>1-10</code> werden automatisch aufgefüllt.</p>
+          </div>
+          <div class="field">
+            <label for="fDesc">Beschreibung (optional)</label>
+            <textarea id="fDesc" maxlength="500" placeholder="z. B. Buch S. 42–45"></textarea>
+          </div>
+          <div class="field">
+            <label for="fDeadline">Zeitlimit / Abgabefrist (optional)</label>
+            <input id="fDeadline" type="datetime-local" style="max-width: 280px">
+            <div class="quick" id="quick">
+              <button type="button" class="secondary small" data-min="10">+10 Min</button>
+              <button type="button" class="secondary small" data-min="20">+20 Min</button>
+              <button type="button" class="secondary small" data-min="45">+45 Min</button>
+              <button type="button" class="secondary small" data-min="90">+90 Min</button>
+              <button type="button" class="secondary small" data-preset="tomorrow">Morgen 8:00</button>
+              <button type="button" class="secondary small" data-preset="week">In 1 Woche</button>
+              <button type="button" class="ghost small" data-preset="none">Keine Frist</button>
+            </div>
+            <p class="muted small" style="margin: 4px 0 0">„+ Min“ zählt ab jetzt – gut für Aufgaben mit Zeitlimit in der Stunde.</p>
+          </div>
+          <div class="field">
+            <label class="checkline"><input type="checkbox" id="fLock" checked> Nach Ablauf keine Abgaben mehr annehmen</label>
+            <p class="muted small" style="margin: 2px 0 0 26px">Sonst werden späte Abgaben angenommen, aber als „verspätet“ markiert.</p>
+          </div>
+          <div class="field">
+            <label class="checkline"><input type="checkbox" id="fOpen" checked> Für Schüler sichtbar</label>
+          </div>
+          <div id="formMsg"></div>
+          <div class="actions">
+            <button type="submit" id="saveBtn">Speichern</button>
+            <button type="button" class="ghost hidden" id="cancelEdit">Abbrechen</button>
+          </div>
+        </form>
+      </section>
+      <section class="card hidden" id="sheetListCard">
+        <h2>Alle Aufgabenblätter</h2>
+        <div id="sheetList"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="lehrer.js"></script>
+</body>
+</html>
